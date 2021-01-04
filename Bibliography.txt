@@ -1,0 +1,1 @@
+1. https://stackoverflow.com/questions/10990137/pygame-mouse-clicking-detection
