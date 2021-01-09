@@ -12,9 +12,6 @@ with open('4inaROW.txt', 'r') as file:
     assert 4 <= ROWS <= 10 and 4 <= COLS <= 10, 'Board must be at least 4x4 and at most 9x9.'
 file.close()
 
-# virtual board
-board = np.zeros((ROWS, COLS))  # at first, board is free
-
 # available free cells:
 FREE_CELLS = ROWS * COLS
 
@@ -62,7 +59,7 @@ class Piece(object):
         pygame.display.update()
 
     # update board after dropping piece at position (row_count, col_count):
-    def drop_piece(self, player_colour: (int, int, int), row_count: int, col_count: int):
+    def drop_piece(self, board, player_colour: (int, int, int), row_count: int, col_count: int):
 
         # 1 for player, 2 for CPU
         if player_colour == YELLOW:
@@ -72,9 +69,8 @@ class Piece(object):
 
 
 # get next free row on column col
-def next_free_row_on_col(column):
+def next_free_row_on_col(board, column):
     last = -1
-    global board
     for i in range(0, ROWS):
         if board[i][column] == 0:
             last = i
@@ -84,17 +80,17 @@ def next_free_row_on_col(column):
 
 
 # remaining available moves (columns):
-def get_available_moves():
+def get_available_moves(board):
     global COLS
     available_cols = []
     for col_count in range(0, COLS):
-        if next_free_row_on_col(col_count) != -1:
+        if next_free_row_on_col(board, col_count) != -1:
             available_cols.append(col_count)
     return available_cols
 
 
 # first available column:
-def first_available_column():
+def first_available_column(board):
     global COLS
     for col_count in range(0, COLS):
         if board[0][col_count] == 0:
@@ -103,10 +99,10 @@ def first_available_column():
 
 
 # pick optimal move for player of colour 'player_colour':
-def best_move(player_colour):  # 1 for human, 2 for CPU
-    available_moves = get_available_moves()  # track all possible moves
+def best_move(board, player_colour):  # 1 for human, 2 for CPU
+    available_moves = get_available_moves(board)  # track all possible moves
     optimal_score = -100000
-    optimal_column = first_available_column()
+    optimal_column = first_available_column(board)
     # ###################### to be continued ################################
 
 
@@ -118,9 +114,8 @@ winner = 0
 
 
 # checks whether current state is final state:
-def check_win(player_colour: (int, int, int)) -> bool:
+def check_win(board, player_colour: (int, int, int)) -> bool:
     global winner
-    global board
 
     def get_board_value(our_colour: (int, int, int)):
         if our_colour == RED:
@@ -184,8 +179,8 @@ def check_win(player_colour: (int, int, int)) -> bool:
 
 
 # game is over when one colour wins (or when table is full):
-def is_game_over() -> bool:
-    return check_win(RED) or check_win(YELLOW) or FREE_CELLS == 0
+def is_game_over(board) -> bool:
+    return check_win(board, RED) or check_win(board, YELLOW) or FREE_CELLS == 0
 
 
 # count pieces for score:
@@ -221,25 +216,24 @@ class BoxMessage(object):
                 self.text_box = FONT.render(self.text, True, BLUE)
             self.colour = BLUE if self.clicked else WHITE
             
-    def draw(self, screen):
+    def draw(self):
         screen.blit(self.text_box, (self.rect.x + 5, self.rect.y + 5))
         pygame.draw.rect(screen, self.colour, self.rect, 2)
 
 
 # class for GUI
 class GameBoard(object):
-    global ROWS, COLS, board, SQUARE_SIZE
+    global ROWS, COLS, SQUARE_SIZE
 
     # initialization:
     def __init__(self):
         self.rows = ROWS
         self.cols = COLS
-        self.board = board
+        self.board = np.zeros((ROWS, COLS))
         self.font = pygame.font.SysFont('Calibri', 32)
         self.box1 = BoxMessage((W - W / 3) / 2, H / ROWS, W / 3 * COLS / 3, 32, 'Easy')
         self.box2 = BoxMessage((W - W / 3) / 2, H / ROWS + 64, W / 3 * COLS / 3, 32, 'Medium')
         self.box3 = BoxMessage((W - W / 3) / 2, H / ROWS + 128, W / 3 * COLS / 3, 32, 'Hard')
-        self.board = np.zeros((ROWS, COLS))
 
     # restart:
     def restart(self):
@@ -253,15 +247,15 @@ class GameBoard(object):
                                  (col_count * SQUARE_SIZE, row_count * SQUARE_SIZE + SQUARE_SIZE, SQUARE_SIZE,
                                   SQUARE_SIZE))
                 circle_colour = (0, 0, 0)
-                if board[row_count][col_count] == 0:  # free cell
+                if self.board[row_count][col_count] == 0:  # free cell
                     circle_colour = WHITE
-                elif board[row_count][col_count] == 1:  # human player
+                elif self.board[row_count][col_count] == 1:  # human player
                     circle_colour = YELLOW
-                elif board[row_count][col_count] == 2:  # CPU player
+                elif self.board[row_count][col_count] == 2:  # CPU player
                     circle_colour = RED
-                # initializing board piece with circle_colour
-                board_piece = Piece(circle_colour, game_board.board)
-                board_piece.draw_piece(circle_colour, row_count, col_count)
+                # initializing game_board.board piece with circle_colour
+                self.board_piece = Piece(circle_colour, self.board)
+                self.board_piece.draw_piece(circle_colour, row_count, col_count)
         # update display:
         pygame.display.update()
 
@@ -270,9 +264,9 @@ class GameBoard(object):
         for i in range(ROWS):
             for j in range(COLS):
                 if j < COLS - 1:
-                    print(int(board[i][j]), end='|')
+                    print(int(self.board[i][j]), end='|')
                 else:
-                    print(int(board[i][j]))
+                    print(int(self.board[i][j]))
         print('\n')
 
 
@@ -313,6 +307,27 @@ class AI(object):
     def analyze_score(self, piece):
         pass
 
+    # check locations for best move
+    # THIS ONE IS COPIED, MODIFY
+    # def best_move(self, piece) -> int:  # returns col
+    #     available_columns = get_available_moves()
+    #     best_score = 1000
+    #     best_column = random.choice(available_columns)
+    #     for col_count in available_columns:
+    #         row = next_free_row_on_col(col_count)
+    #         temp_board = self.board.copy()
+    #         drop_piece(row, col, piece)
+    #         score = analyze_score(temp_board, piece)
+    #         if score > best_score:
+    #             best_score = score
+    #             best_column = col
+    #     return best_column
+
+    # # make move (player of colour 'player' drops ball in column #col):
+    # def make_move(self, col, player):
+    #     row = next_free_row_on_col(col)
+    #     board[row][col] = player  # 1 for human, 2 for CPU
+
     """ ______________________ EVAL FUNCTION ________________________"""
 
     # eval function for AI:
@@ -327,17 +342,63 @@ class AI(object):
     """ ________________________  FINAL STATE ________________________"""
 
     def is_final_state(self):
-        return is_game_over()
+        return is_game_over(game_board.board)
 
     def minimax(self, ply_level):
-        available_columns = get_available_moves()
-        game_over = is_game_over()
+        available_columns = get_available_moves(game_board.board)
+        game_over = is_game_over(game_board.board)
         if ply_level == 0 or game_over:
             if ply_level == 0:
                 # if winning_move(AI, piece)
                 pass
         if turn == 2:  # AI's turn
             pass
+
+    # def minimax(board, depth, alpha, beta, maximizingPlayer):
+    #     valid_locations = get_valid_locations(board)
+    #     is_terminal = is_terminal_node(board)
+    #     if depth == 0 or is_terminal:
+    #         if is_terminal:
+    #             if winning_move(board, AI_PIECE):
+    #                 return (None, 100000000000000)
+    #             elif winning_move(board, PLAYER_PIECE):
+    #                 return (None, -10000000000000)
+    #             else:  # Game is over, no more valid moves
+    #                 return (None, 0)
+    #         else:  # Depth is zero
+    #             return (None, score_position(board, AI_PIECE))
+    #     if maximizingPlayer:
+    #         value = -math.inf
+    #         column = random.choice(valid_locations)
+    #         for col in valid_locations:
+    #             row = get_next_open_row(board, col)
+    #             b_copy = board.copy()
+    #             drop_piece(b_copy, row, col, AI_PIECE)
+    #             new_score = minimax(b_copy, depth - 1, alpha, beta, False)[1]
+    #             if new_score > value:
+    #                 value = new_score
+    #                 column = col
+    #             alpha = max(alpha, value)
+    #             if alpha >= beta:
+    #                 break
+    #         return column, value
+    #
+    #     else:  # Minimizing player
+    #         value = math.inf
+    #         column = random.choice(valid_locations)
+    #         for col in valid_locations:
+    #             row = get_next_open_row(board, col)
+    #             b_copy = board.copy()
+    #             drop_piece(b_copy, row, col, PLAYER_PIECE)
+    #             new_score = minimax(b_copy, depth - 1, alpha, beta, True)[1]
+    #             if new_score < value:
+    #                 value = new_score
+    #                 column = col
+    #             beta = min(beta, value)
+    #             if alpha >= beta:
+    #                 break
+    #         return column, value
+
 
 def single_player():
     # difficulty: easy
@@ -382,7 +443,7 @@ running = True
 
 # play Connect-4 with a different opponent:
 def multiplayer():
-    global board, running, FREE_CELLS, turn, colour
+    global game_board, running, FREE_CELLS, turn, colour
     while running:
         for event in pygame.event.get():  # the event loop
 
@@ -397,11 +458,11 @@ def multiplayer():
                 row = event.pos[0]
                 col = int(np.math.floor(row / SQUARE_SIZE))
                 # get #row where piece is dropped:
-                drop_on_row = next_free_row_on_col(col)
+                drop_on_row = next_free_row_on_col(game_board.board, col)
                 piece = Piece(colour, game_board.board)
                 # update board:
                 if drop_on_row != -1:  # if column is not empty and piece can be dropped:
-                    piece.drop_piece(colour, drop_on_row, col)  # drop piece
+                    piece.drop_piece(game_board.board, colour, drop_on_row, col)  # drop piece
                     FREE_CELLS = FREE_CELLS - 1
                     game_board.draw_board()  # update GUI board
                     game_board.printBoard()  # print board
@@ -424,22 +485,28 @@ def multiplayer():
                 pygame.display.update()
 
             # stop condition:
-            if is_game_over():
+            if is_game_over(game_board.board):
                 # check who won:
                 if winner == 0:
                     print('Tie!\nScore: ', human.score, '-', computer.score, 'Free cells: ', FREE_CELLS)
+                    color_fill = YELLOW
+                    text_box: str = "Player 1 wins! Congratulations!"
                 elif winner == 1:
                     print('You won!\nScore:', human.score, '-', computer.score, '\nFree cells: ', FREE_CELLS)
+                    color_fill = RED
+                    text_box: str = "Player 2 wins! Congratulations!"
                 else:
                     print('You lost!\nTotal score:', human.score, '-', computer.score, '\nFree cells: ', FREE_CELLS)
+                    color_fill = BLACK
+                    text_box: str = "That was a close one! Tie."
                 # update GUI board:
-                screen.fill(WHITE)  # set background colour to white
+
+                screen.fill(color_fill)  # set background colour to white
                 pygame.display.set_caption(TITLE)  # set title of the window
-                text_box: str = "Player 1 wins! Congratulations!" if winner == 1 else "Player 2 wins! Congratulations!"
                 winner_box = BoxMessage(H//3, W//3, W/2, 32, text_box)
-                winner_box.draw(screen)
+                winner_box.draw()
                 pygame.display.update()
-                time.sleep(5)
+                time.sleep(2)
                 # stop program from running:
                 running = False
 
