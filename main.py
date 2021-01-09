@@ -28,6 +28,8 @@ WHITE = (230, 230, 230)
 # Initialize the pygame
 SQUARE_SIZE = 100
 WINDOW_SIZE = (SQUARE_SIZE * COLS, SQUARE_SIZE * (ROWS + 1))
+H = (ROWS + 1) * SQUARE_SIZE
+W = COLS * SQUARE_SIZE
 RADIUS = SQUARE_SIZE // 2 - 5  # error
 
 pygame.init()
@@ -42,6 +44,7 @@ music_file = 'Su Turno.ogg'
 pygame.mixer.init()
 pygame.mixer.music.load(music_file)
 pygame.mixer.music.play(-1)  # If the loops is -1 then the music will repeat indefinitely.
+FONT = pygame.font.Font(None, 32)
 
 
 # class for piece on the board
@@ -50,7 +53,7 @@ class Piece(object):
         self.colour = my_colour
 
     # draw coloured piece at position (row_count, col_count):
-    def drawPiece(self, circle_colour, row_count, col_count):
+    def draw_piece(self, circle_colour, row_count, col_count):
         pygame.draw.circle(screen, circle_colour,
                            (col_count * SQUARE_SIZE + SQUARE_SIZE // 2,
                             row_count * SQUARE_SIZE + SQUARE_SIZE // 2 + SQUARE_SIZE),
@@ -119,7 +122,6 @@ def check_win(player_colour: (int, int, int)) -> bool:
     global winner
     global board
 
-    # NOT WORKING YET
     def get_board_value(our_colour: (int, int, int)):
         if our_colour == RED:
             return 2
@@ -130,20 +132,6 @@ def check_win(player_colour: (int, int, int)) -> bool:
 
     value = get_board_value(player_colour)
 
-    # # Check horizontal
-    # for c in range(self.COLUMNS - 3):
-    #     for r in range(self.ROWS):
-    #         if self._grid[r][c] == id and self._grid[r][c + 1] == id and self._grid[r][c + 2] == id and self._grid[r][
-    #             c + 3] == id:
-    #             return True
-    #
-    # # Check vertical
-    # for c in range(self.COLUMNS):
-    #     for r in range(self.ROWS - 3):
-    #         if self._grid[r][c] == id and self._grid[r + 1][c] == id and self._grid[r + 2][c] == id and \
-    #                 self._grid[r + 3][c] == id:
-    #             return True
-    #
     # # Check positive diagonal
     # for c in range(self.COLUMNS - 3):
     #     for r in range(self.ROWS - 3):
@@ -158,40 +146,26 @@ def check_win(player_colour: (int, int, int)) -> bool:
     #                 self._grid[r - 3][c + 3] == id:
     #             return True
 
-    # horizontally: (checked; works)
+    # horizontally:
     def horizontal_win() -> bool:
         # for each row, check whether there are 4 consecutive pieces of the same colour:
-        for i in range(ROWS):
-            count = 1
-            for j in range(COLS - 1):
-                if board[i][j] == board[i][j + 1] == value:
-                    count += 1
-                else:  # if board[i][j] != board[i][j+1]:
-                    if count >= 4:
-                        return True
-                    else:
-                        count = 1
+        for col in range(COLS-3):
+            for row in range(ROWS):
+                if board[row][col] == board[row][col+1] == board[row][col+2] == board[row][col+3] == value:
+                    return True
         # if no row has 4 consecutive identical pieces:
         return False
 
     # vertically:
-    # CHECKED; WORKS
     def vertical_win() -> bool:
         # check whether there are 4 identical pieces on a column:
-        for j in range(COLS):
-            count = 1
-            for i in range(ROWS - 1, 0, -1):
-                if board[i][j] == board[i - 1][j] == value:
-                    count += 1
-                else:
-                    if count >= 4:
-                        return True
-                    else:
-                        count = 1
+        for row in range(ROWS-3):
+            for col in range(COLS):
+                if board[row][col] == board[row+1][col] == board[row+2][col] == board[row+3][col] == value:
+                    return True
         return False
 
     # diagonally:
-    # CHECKED; IT WORKS
     def diagonal_win() -> bool:
         def get_all_diagonals():  # checked; works
             # main diagonals:
@@ -206,21 +180,16 @@ def check_win(player_colour: (int, int, int)) -> bool:
         # all board diagonals:
         diagonals = get_all_diagonals()
 
+        # parse all diagonals to check for 4 identical pieces:
         for diag_i in diagonals:
             # print(diag_i, "  :  ", end='')
-            count = 1
-            for elem in range(len(diag_i) - 1):
+            for elem in range(len(diag_i)-3):
                 # print(diag_i[elem], end='; ')
-                if diag_i[elem] == diag_i[elem + 1] == value:
-                    count = count + 1
-                else:
-                    if count >= 4:
-                        return True
-                    count = 1
-
+                if diag_i[elem] == diag_i[elem + 1] == diag_i[elem+2] == diag_i[elem+3] == value:
+                    return True
         return False
 
-    # at least one of them has to be true for player 'colour' to win:
+    # at least one type of win has to be true for player 'colour' to win:
     if horizontal_win() or vertical_win() or diagonal_win():
         winner = value
         return True
@@ -234,7 +203,7 @@ def is_game_over() -> int:
 
 
 # count pieces for score:
-def count_pieces(player_colour: (int, int, int)):
+def count_pieces(player_colour: (int, int, int)) -> int:
     val = 0
     if player_colour == YELLOW:
         val = 1
@@ -246,25 +215,52 @@ def count_pieces(player_colour: (int, int, int)):
         for j in range(COLS):
             if board[i][j] == val:
                 count += 1
+    return count
+
+
+# if opponent is computer, create buttons for levels (easy, medium, hard)
+class BoxMessage(object):
+    def __init__(self, x, y, w, h, text='Level'):
+        self.rect = pygame.Rect(x, y, w, h)  # Rect(left, top, width, height) -> Rect
+        self.text = text
+        self.colour = WHITE
+        self.text_box = FONT.render(text, True, BLUE)
+        self.clicked = False
+
+    def click_box(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            # if click within box --> change colour from WHITE to BLUE
+            if self.rect.collidepoint(event.pos):
+                self.clicked = 1 - self.clicked
+                self.colour = BLUE
+                self.text_box = FONT.render(self.text, True, BLUE)
+            self.colour = BLUE if self.clicked else WHITE
+            
+    def draw(self, screen):
+        screen.blit(self.text_box, (self.rect.x + 5, self.rect.y + 5))
+        pygame.draw.rect(screen, self.colour, self.rect, 2)
 
 
 # class for GUI
 class GameBoard(object):
-    global ROWS, COLS, board
+    global ROWS, COLS, board, SQUARE_SIZE
 
-    # initialization
+    # initialization:
     def __init__(self):
         self.rows = ROWS
         self.cols = COLS
         self.board = board
-        self.font = pygame.font.SysFont('Calibri', 20)
+        self.font = pygame.font.SysFont('Calibri', 32)
+        self.box1 = BoxMessage((W - W / 3) / 2, H / ROWS, W / 3 * COLS / 3, 32, 'Easy')
+        self.box2 = BoxMessage((W - W / 3) / 2, H / ROWS + 64, W / 3 * COLS / 3, 32, 'Medium')
+        self.box3 = BoxMessage((W - W / 3) / 2, H / ROWS + 128, W / 3 * COLS / 3, 32, 'Hard')
 
     # restart:
     def restart(self):
         self.board = np.zeros((ROWS, COLS))  # board is free again
 
     # draw board and its coloured pieces
-    def drawBoard(self):
+    def draw_board(self):
         for row_count in range(ROWS):
             for col_count in range(COLS):
                 pygame.draw.rect(screen, BLUE,
@@ -279,7 +275,7 @@ class GameBoard(object):
                     circle_colour = RED
                 # initializing board piece with circle_colour
                 board_piece = Piece(circle_colour)
-                board_piece.drawPiece(circle_colour, row_count, col_count)
+                board_piece.draw_piece(circle_colour, row_count, col_count)
         # update display:
         pygame.display.update()
 
@@ -292,12 +288,6 @@ class GameBoard(object):
                 else:
                     print(int(board[i][j]))
         print('\n')
-
-    def show_message(self):
-        row_message = 0
-        for col_count in range(COLS):
-            pygame.draw.rect(screen, BLUE,
-                             (col_count * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE))
 
 
 # class for player (computer or human):
@@ -441,13 +431,12 @@ def single_player():
 
 
 game_board = GameBoard()
-game_board.drawBoard()
+game_board.draw_board()
 
 computer = Player(RED, 0, 3)  # score = 0
 human = Player(YELLOW, 0, 3)  # score = 0
 
 # initializing first player:
-turn, colour = None, None
 if FIRST_PLAYER == 'human':
     turn = 1
     colour = YELLOW
@@ -465,6 +454,7 @@ def switch_player(player_colour, player_turn):
     return player_colour, player_turn
 
 
+# has the game finished?
 running = True
 
 
@@ -490,7 +480,7 @@ def multiplayer():
                 if drop_on_row != -1:  # if column is not empty and piece can be dropped:
                     drop_piece(colour, drop_on_row, col)  # drop piece
                     FREE_CELLS = FREE_CELLS - 1
-                    game_board.drawBoard()  # update GUI board
+                    game_board.draw_board()  # update GUI board
                     game_board.printBoard()  # print board
                     colour, turn = switch_player(colour, turn)  # switch players
                 pygame.display.update()
@@ -529,3 +519,8 @@ def play_game():
         # create correspondent AI object
         # play
         pass
+
+
+if __name__ == "__main__":
+    play_game()
+    pygame.quit()
