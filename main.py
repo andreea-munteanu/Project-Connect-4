@@ -1,4 +1,4 @@
-from random import random
+import time
 from turtle import left
 import pygame
 import numpy as np
@@ -49,8 +49,9 @@ FONT = pygame.font.Font(None, 32)
 
 # class for piece on the board
 class Piece(object):
-    def __init__(self, my_colour):
+    def __init__(self, my_colour, board):
         self.colour = my_colour
+        self.board = board
 
     # draw coloured piece at position (row_count, col_count):
     def draw_piece(self, circle_colour, row_count, col_count):
@@ -60,15 +61,14 @@ class Piece(object):
                            RADIUS)
         pygame.display.update()
 
+    # update board after dropping piece at position (row_count, col_count):
+    def drop_piece(self, player_colour: (int, int, int), row_count: int, col_count: int):
 
-# update board after dropping piece at position (row_count, col_count):
-def drop_piece(player_colour: (int, int, int), row_count: int, col_count: int):
-    global board
-    # 1 for player, 2 for CPU
-    if player_colour == YELLOW:
-        board[row_count][col_count] = 1
-    elif player_colour == RED:
-        board[row_count][col_count] = 2
+        # 1 for player, 2 for CPU
+        if player_colour == YELLOW:
+            board[row_count][col_count] = 1
+        elif player_colour == RED:
+            board[row_count][col_count] = 2
 
 
 # get next free row on column col
@@ -132,20 +132,6 @@ def check_win(player_colour: (int, int, int)) -> bool:
 
     value = get_board_value(player_colour)
 
-    # # Check positive diagonal
-    # for c in range(self.COLUMNS - 3):
-    #     for r in range(self.ROWS - 3):
-    #         if self._grid[r][c] == id and self._grid[r + 1][c + 1] == id and self._grid[r + 2][c + 2] == id and \
-    #                 self._grid[r + 3][c + 3] == id:
-    #             return True
-    #
-    # # Check negative diagonal
-    # for c in range(self.COLUMNS - 3):
-    #     for r in range(3, self.ROWS):
-    #         if self._grid[r][c] == id and self._grid[r - 1][c + 1] == id and self._grid[r - 2][c + 2] == id and \
-    #                 self._grid[r - 3][c + 3] == id:
-    #             return True
-
     # horizontally:
     def horizontal_win() -> bool:
         # for each row, check whether there are 4 consecutive pieces of the same colour:
@@ -198,22 +184,21 @@ def check_win(player_colour: (int, int, int)) -> bool:
 
 
 # game is over when one colour wins (or when table is full):
-def is_game_over() -> int:
+def is_game_over() -> bool:
     return check_win(RED) or check_win(YELLOW) or FREE_CELLS == 0
 
 
 # count pieces for score:
-def count_pieces(player_colour: (int, int, int)) -> int:
+def count_pieces(my_board, player_colour: (int, int, int)) -> int:
     val = 0
     if player_colour == YELLOW:
         val = 1
     elif player_colour == RED:
         val = 2
     count = 0
-    global board
     for i in range(ROWS):
         for j in range(COLS):
-            if board[i][j] == val:
+            if my_board[i][j] == val:
                 count += 1
     return count
 
@@ -254,6 +239,7 @@ class GameBoard(object):
         self.box1 = BoxMessage((W - W / 3) / 2, H / ROWS, W / 3 * COLS / 3, 32, 'Easy')
         self.box2 = BoxMessage((W - W / 3) / 2, H / ROWS + 64, W / 3 * COLS / 3, 32, 'Medium')
         self.box3 = BoxMessage((W - W / 3) / 2, H / ROWS + 128, W / 3 * COLS / 3, 32, 'Hard')
+        self.board = np.zeros((ROWS, COLS))
 
     # restart:
     def restart(self):
@@ -274,7 +260,7 @@ class GameBoard(object):
                 elif board[row_count][col_count] == 2:  # CPU player
                     circle_colour = RED
                 # initializing board piece with circle_colour
-                board_piece = Piece(circle_colour)
+                board_piece = Piece(circle_colour, game_board.board)
                 board_piece.draw_piece(circle_colour, row_count, col_count)
         # update display:
         pygame.display.update()
@@ -290,6 +276,10 @@ class GameBoard(object):
         print('\n')
 
 
+game_board = GameBoard()
+game_board.draw_board()
+
+
 # class for player (computer or human):
 class Player(object):
     def __init__(self, player_colour, score, ply):  #: (int, int, int), score: int, ply: int):
@@ -301,54 +291,38 @@ class Player(object):
     def inc_score(self):
         self.score += 1
 
+    def analyze_score(self):
+        pass
+
+
+computer = Player(RED, 0, 3)  # score = 0
+human = Player(YELLOW, 0, 3)  # score = 0
+
 
 # class for AI (superclass for levels of difficulty):
 class AI(object):
-    global board, turn
-
     def __init__(self, strategy: str, max_ply: int, player: Player):
         self.strategy = strategy
         self.max_ply = max_ply
         self.player = player  # corresponding to CPU (for score and the like)
-        self.board = np.copy(board)
+        self.board = np.copy(game_board.board)
         self.alpha = -1000000
         self.beta = 1000000
 
     # calculate score:
-    def analyze_score(self, board, piece):
+    def analyze_score(self, piece):
         pass
-
-    # check locations for best move
-    # THIS ONE IS COPIED, MODIFY
-    # def best_move(self, piece) -> int:  # returns col
-    #     available_columns = get_available_moves()
-    #     best_score = 1000
-    #     best_column = random.choice(available_columns)
-    #     for col_count in available_columns:
-    #         row = next_free_row_on_col(col_count)
-    #         temp_board = self.board.copy()
-    #         drop_piece(row, col, piece)
-    #         score = analyze_score(temp_board, piece)
-    #         if score > best_score:
-    #             best_score = score
-    #             best_column = col
-    #     return best_column
-
-    # # make move (player of colour 'player' drops ball in column #col):
-    # def make_move(self, col, player):
-    #     row = next_free_row_on_col(col)
-    #     board[row][col] = player  # 1 for human, 2 for CPU
 
     """ ______________________ EVAL FUNCTION ________________________"""
 
     # eval function for AI:
-    def static_eval(self, human: Player, computer: Player):
+    def static_eval(self, human_player: Player, computer_player: Player):
         # f(n) > 0 --> advantageous for human
         # f(n) < 0 --> advantageous for computer
         # f(n) = 0 --> no one is at advantage
         ########################################
         # f(n) = human.score - computer.score
-        return human.score - computer.score
+        return human_player.score - computer_player.score
 
     """ ________________________  FINAL STATE ________________________"""
 
@@ -364,52 +338,6 @@ class AI(object):
                 pass
         if turn == 2:  # AI's turn
             pass
-
-    # def minimax(board, depth, alpha, beta, maximizingPlayer):
-    #     valid_locations = get_valid_locations(board)
-    #     is_terminal = is_terminal_node(board)
-    #     if depth == 0 or is_terminal:
-    #         if is_terminal:
-    #             if winning_move(board, AI_PIECE):
-    #                 return (None, 100000000000000)
-    #             elif winning_move(board, PLAYER_PIECE):
-    #                 return (None, -10000000000000)
-    #             else:  # Game is over, no more valid moves
-    #                 return (None, 0)
-    #         else:  # Depth is zero
-    #             return (None, score_position(board, AI_PIECE))
-    #     if maximizingPlayer:
-    #         value = -math.inf
-    #         column = random.choice(valid_locations)
-    #         for col in valid_locations:
-    #             row = get_next_open_row(board, col)
-    #             b_copy = board.copy()
-    #             drop_piece(b_copy, row, col, AI_PIECE)
-    #             new_score = minimax(b_copy, depth - 1, alpha, beta, False)[1]
-    #             if new_score > value:
-    #                 value = new_score
-    #                 column = col
-    #             alpha = max(alpha, value)
-    #             if alpha >= beta:
-    #                 break
-    #         return column, value
-    #
-    #     else:  # Minimizing player
-    #         value = math.inf
-    #         column = random.choice(valid_locations)
-    #         for col in valid_locations:
-    #             row = get_next_open_row(board, col)
-    #             b_copy = board.copy()
-    #             drop_piece(b_copy, row, col, PLAYER_PIECE)
-    #             new_score = minimax(b_copy, depth - 1, alpha, beta, True)[1]
-    #             if new_score < value:
-    #                 value = new_score
-    #                 column = col
-    #             beta = min(beta, value)
-    #             if alpha >= beta:
-    #                 break
-    #         return column, value
-
 
 def single_player():
     # difficulty: easy
@@ -429,12 +357,6 @@ def single_player():
     class Hard(AI):
         pass
 
-
-game_board = GameBoard()
-game_board.draw_board()
-
-computer = Player(RED, 0, 3)  # score = 0
-human = Player(YELLOW, 0, 3)  # score = 0
 
 # initializing first player:
 if FIRST_PLAYER == 'human':
@@ -476,18 +398,24 @@ def multiplayer():
                 col = int(np.math.floor(row / SQUARE_SIZE))
                 # get #row where piece is dropped:
                 drop_on_row = next_free_row_on_col(col)
+                piece = Piece(colour, game_board.board)
                 # update board:
                 if drop_on_row != -1:  # if column is not empty and piece can be dropped:
-                    drop_piece(colour, drop_on_row, col)  # drop piece
+                    piece.drop_piece(colour, drop_on_row, col)  # drop piece
                     FREE_CELLS = FREE_CELLS - 1
                     game_board.draw_board()  # update GUI board
                     game_board.printBoard()  # print board
                     colour, turn = switch_player(colour, turn)  # switch players
+                    # update score:
+                    if turn == 2:
+                        computer.inc_score()
+                    else:
+                        human.inc_score()
+
                 pygame.display.update()
 
             # if mouse is moving, make ball appear like it's in motion:
             elif event.type == pygame.MOUSEMOTION:
-                piece = Piece(colour)
                 # position to drop piece:
                 row = event.pos[0]
                 # moving piece to drop:
@@ -504,6 +432,14 @@ def multiplayer():
                     print('You won!\nScore:', human.score, '-', computer.score, '\nFree cells: ', FREE_CELLS)
                 else:
                     print('You lost!\nTotal score:', human.score, '-', computer.score, '\nFree cells: ', FREE_CELLS)
+                # update GUI board:
+                screen.fill(WHITE)  # set background colour to white
+                pygame.display.set_caption(TITLE)  # set title of the window
+                text_box: str = "Player 1 wins! Congratulations!" if winner == 1 else "Player 2 wins! Congratulations!"
+                winner_box = BoxMessage(H//3, W//3, W/2, 32, text_box)
+                winner_box.draw(screen)
+                pygame.display.update()
+                time.sleep(5)
                 # stop program from running:
                 running = False
 
