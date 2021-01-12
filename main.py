@@ -666,16 +666,16 @@ def single_player():
 
                     screen.fill(color_fill)  # set background colour to white
                     pygame.display.set_caption(TITLE)  # set title of the window
-                    
+
                     # show winner in GUI:
                     winner_box = BoxMessage(H // 3, W // 3, W / 2, 32, text_box)
                     winner_box.draw()
                     pygame.display.update()
                     time.sleep(2)  # sleep for two seconds after showing winner
-                    
+
                     # stop program from running:
                     running = False
-                    
+
                 # update screen:
                 pygame.display.update()
 
@@ -774,6 +774,7 @@ def multiplayer():
 
 
 def play_game():
+    global running, screen
     if OPPONENT == 'human':
         multiplayer()
     elif OPPONENT == 'computer':
@@ -785,21 +786,27 @@ def play_game():
 
         boxes = [level_box_easy, level_box_medium, level_box_hard]
 
-        # # updating interface:
-        # screen.fill(WHITE)
-        # pygame.display.flip()
-        # pygame.display.update()
-        # # drawing boxes:
-        # for box in boxes:
-        #     box.draw()
-        #
-        # # choose difficulty level
-        # for box in boxes:
-        #     # box.click_box(event)
-        #     pass
-        # # create correspondent AI object
-        # # play
-        # pass
+        # updating interface:
+        screen.fill(WHITE)
+        pygame.display.update()
+        
+        # drawing boxes:
+        for box in boxes:
+            box.draw()
+
+        while running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                    exit()
+                for box in boxes:
+                    box.click_box(event)
+                    if box.clicked:
+                        print('clicked')
+                        time.sleep(2)
+
+            pygame.display.flip()
+            clock.tick(30)
 
 
 if __name__ == "__main__":
