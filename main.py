@@ -55,6 +55,7 @@ class Piece(object):
     - virtual board update after one of the two players drops piece
 
     """
+
     def __init__(self, my_colour, board):
         self.colour = my_colour
         self.board = board
@@ -247,6 +248,7 @@ class BoxMessage(object):
     - GUI representation of the text box
 
     """
+
     def __init__(self, x, y, w, h, text='Level'):
         self.rect = pygame.Rect(x, y, w, h)  # Rect(left, top, width, height) -> Rect
         self.text = text
@@ -327,6 +329,7 @@ class Player(object):
     - incrementing score
 
     """
+
     def __init__(self, player_colour, score, ply):  #: (int, int, int), score: int, ply: int):
         self.colour = player_colour
         self.score = score
@@ -609,15 +612,15 @@ class AI(object):
         if self.end_of_recursion() is True:
             # if either player wins:
             if is_game_over(board):
-                if check_win(board, YELLOW):     # player wins
+                if check_win(board, YELLOW):  # player wins
                     return 100000000000000, None
-                elif check_win(board, RED):      # computer wins
+                elif check_win(board, RED):  # computer wins
                     return -100000000000000, None
                 else:
                     return 0, None  # tie
             # else, if we reach ply level 0:
             elif ply_level == 0:
-                return self.compute_score(2)     # return AI score
+                return self.compute_score(2)  # return AI score
 
         # maximizing player's turn:
         if turn == max_player:
@@ -635,80 +638,96 @@ AI_medium_player = AI(3, computer)
 AI_hard_player = AI(5, computer)
 
 
-def single_player():
-    global turn, running, FIRST_PLAYER, colour, game_board, FREE_CELLS
+# difficulty: easy
+# strategy: random
+def play_easy_game():
+    """
+    Function for playing a Connect-Four game of human player vs. AI of difficulty = 'easy'
+    Strategy for AI: choosing column at random
+    :return: -
+    """
+    global running, turn, colour, game_board, FREE_CELLS
 
-    # difficulty: easy
-    # strategy: random
-    class Easy(AI):
-        while running and not is_game_over(game_board.board):
+    while running and not is_game_over(game_board.board):
+        # for human player:
+        if colour == YELLOW:
+            AI_easy_player.human_handle_events(game_board.board)
+            # stop condition:
+            if is_game_over(game_board.board):
+                # check who won:
+                if winner == 0:
+                    print('Tie!\nScore: ', human.score, '-', computer.score)
+                    color_fill = YELLOW
+                    text_box: str = "Player 1 wins! Congratulations!"
+                elif winner == 1:
+                    print('You won!\nScore:', human.score, '-', computer.score)
+                    color_fill = RED
+                    text_box: str = "Player 2 wins! Congratulations!"
+                else:  # if winner == 3
+                    print('You lost!\nTotal score:', human.score, '-', computer.score)
+                    color_fill = BLACK
+                    text_box: str = "That was a close one! Tie."
+                # update GUI board:
 
-            # for human player:
-            if colour == YELLOW:
+                screen.fill(color_fill)  # set background colour to white
+                pygame.display.set_caption(TITLE)  # set title of the window
 
-                AI_easy_player.human_handle_events(game_board.board)
-                # stop condition:
-                if is_game_over(game_board.board):
-                    # check who won:
-                    if winner == 0:
-                        print('Tie!\nScore: ', human.score, '-', computer.score)
-                        color_fill = YELLOW
-                        text_box: str = "Player 1 wins! Congratulations!"
-                    elif winner == 1:
-                        print('You won!\nScore:', human.score, '-', computer.score)
-                        color_fill = RED
-                        text_box: str = "Player 2 wins! Congratulations!"
-                    else:  # if winner == 3
-                        print('You lost!\nTotal score:', human.score, '-', computer.score)
-                        color_fill = BLACK
-                        text_box: str = "That was a close one! Tie."
-                    # update GUI board:
-
-                    screen.fill(color_fill)  # set background colour to white
-                    pygame.display.set_caption(TITLE)  # set title of the window
-
-                    # show winner in GUI:
-                    winner_box = BoxMessage(H // 3, W // 3, W / 2, 32, text_box)
-                    winner_box.draw()
-                    pygame.display.update()
-                    time.sleep(2)  # sleep for two seconds after showing winner
-
-                    # stop program from running:
-                    running = False
-
-                # update screen:
+                # show winner in GUI:
+                winner_box = BoxMessage(H // 3, W // 3, W / 2, 32, text_box)
+                winner_box.draw()
                 pygame.display.update()
+                time.sleep(2)  # sleep for two seconds after showing winner
 
-            # else if it's AI's turn and game is not over:
-            elif colour == RED and running:
-                available_moves = get_available_moves(game_board.board)
-                random.shuffle(available_moves)
-                col_ = random.choice(available_moves)
-                row_ = next_free_row_on_col(game_board.board, col_)
-                piece = Piece(RED, game_board.board)
-                piece.drop_piece(game_board.board, RED, row_, col_)
-                # updating free cells count:
-                FREE_CELLS = decrement(FREE_CELLS)
-                # updating score for AI:
-                computer.inc_score()
-                # updating GUI:
-                game_board.draw_board()  # update GUI board
-                print_board(game_board.board)  # print board
-                pygame.screen.update()
-                if is_game_over(game_board.board):
-                    print("game over, loser")
-                    running = False
-                # switch players:
-                colour, turn = switch_player(colour, turn)
+                # stop program from running:
+                running = False
 
-    # difficulty: medium
-    # strategy: random
-    class Medium(AI):
+            # update screen:
+            pygame.display.update()
+
+        # else if it's AI's turn and game is not over:
+        elif colour == RED and running:
+            available_moves = get_available_moves(game_board.board)
+            random.shuffle(available_moves)
+            col_ = random.choice(available_moves)
+            row_ = next_free_row_on_col(game_board.board, col_)
+            piece = Piece(RED, game_board.board)
+            piece.drop_piece(game_board.board, RED, row_, col_)
+            # updating free cells count:
+            FREE_CELLS = decrement(FREE_CELLS)
+            # updating score for AI:
+            computer.inc_score()
+            # updating GUI:
+            game_board.draw_board()  # update GUI board
+            print_board(game_board.board)  # print board
+            pygame.screen.update()
+            if is_game_over(game_board.board):
+                print("game over, loser")
+                running = False
+            # switch players:
+            colour, turn = switch_player(colour, turn)
+
+
+def play_medium_game():
+    """
+    Function for playing Connect-4 Game of human player vs. medium AI.
+    Strategy: minimax with max_ply = 3.
+    """
+
+
+def play_hard_game():
+    """
+    Function for playing Connect-4 Game of human player vs. medium AI.
+    Strategy: minimax with max_ply = 5 and capacity to block winning moves.
+    """
+
+
+def single_player(difficulty_level):
+    global turn, running, FIRST_PLAYER, colour, game_board, FREE_CELLS
+    if difficulty_level == 'easy':
         pass
-
-    # difficulty: hard
-    # strategy: random
-    class Hard(AI):
+    elif difficulty_level == 'medium':
+        pass
+    elif difficulty_level == 'hard':
         pass
 
 
@@ -725,7 +744,7 @@ def multiplayer():
             # if mouse click:
             elif event.type == pygame.MOUSEBUTTONUP or event.type == pygame.MOUSEBUTTONDOWN and event.button == left:
                 # piece is dropped; update board
-                pos = pygame.mouse.get_pos()
+                # pos = pygame.mouse.get_pos()
                 row = event.pos[0]
                 col = int(np.math.floor(row / SQUARE_SIZE))
                 # get #row where piece is dropped:
@@ -780,33 +799,52 @@ def play_game():
     elif OPPONENT == 'computer':
         # create difficulty level buttons:
 
-        level_box_easy = BoxMessage((W-W/3)/2, H/ROWS, W/3*COLS/3, 32, 'Easy')
-        level_box_medium = BoxMessage((W-W/3)/2, H/ROWS + 64, W/3*COLS/3, 32, 'MEDIUM')
-        level_box_hard = BoxMessage((W-W/3)/2, H/ROWS + 128, W/3*COLS/3, 32, 'HARD')
+        level_box_easy = BoxMessage((W - W / 3) / 2, H / ROWS, W / 3 * COLS / 3, 32, 'Easy')
+        level_box_medium = BoxMessage((W - W / 3) / 2, H / ROWS + 64, W / 3 * COLS / 3, 32, 'MEDIUM')
+        level_box_hard = BoxMessage((W - W / 3) / 2, H / ROWS + 128, W / 3 * COLS / 3, 32, 'HARD')
 
         boxes = [level_box_easy, level_box_medium, level_box_hard]
 
         # updating interface:
-        screen.fill(WHITE)
+        screen.fill(BLACK)
         pygame.display.update()
-        
+
         # drawing boxes:
         for box in boxes:
             box.draw()
 
-        while running:
+        difficulty_level = None
+
+        done = False
+        while not done:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    running = False
+                    done = True
                     exit()
                 for box in boxes:
+                    # when clicking on the box, we choose the level of difficulty:
                     box.click_box(event)
                     if box.clicked:
                         print('clicked')
-                        time.sleep(2)
-
+                        if box == level_box_easy:
+                            difficulty_level = 'easy'
+                        elif box == level_box_medium:
+                            difficulty_level = 'medium'
+                        else:
+                            difficulty_level = 'hard'
+                        # wait 0.5 seconds before updating GUI:
+                        time.sleep(1)
+                        done = True
+                        break
             pygame.display.flip()
             clock.tick(30)
+
+        if difficulty_level == 'easy':
+            pass
+        elif difficulty_level == 'medium':
+            pass
+        else:  # difficulty_level == 'hard':
+            pass
 
 
 if __name__ == "__main__":
