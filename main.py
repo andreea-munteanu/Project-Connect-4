@@ -1,3 +1,4 @@
+import random
 import time
 from turtle import left
 import pygame
@@ -105,23 +106,6 @@ def first_available_column(board):
     return -1
 
 
-# pick optimal move for player of colour 'piece':
-def best_move(board, piece: int):  # 1 for human, 2 for CPU
-    available_moves = get_available_moves(board)  # track all possible moves
-    highest_score = -100000
-    optimal_column = first_available_column(board)
-    for col in available_moves:
-        row = next_free_row_on_col(board, col)
-        temp_board = board.copy()
-        piece = Piece(piece, temp_board)
-        # drop piece of colour 'piece'
-        piece.drop_piece(temp_board, piece, row, col)
-        score = 0  # score(board, player)
-        if score > highest_score:
-            highest_score, optimal_column = score, col
-    return optimal_column
-
-
 # decrement value:
 def decrement(value: int):
     return value - 1
@@ -129,7 +113,7 @@ def decrement(value: int):
 
 # variable for determining who won the game:
 # 1 - human
-# 2 - computer
+# 2 - computer/player2
 # 0 - tie
 winner = 0
 
@@ -200,8 +184,7 @@ def check_win(board, player_colour: (int, int, int)) -> bool:
     if horizontal_win() or vertical_win() or diagonal_win():
         winner = value
         return True
-    else:
-        return False
+    return False
 
 
 # game is over when one colour wins (or when table is full):
@@ -211,21 +194,6 @@ def is_game_over(board) -> bool:
     :return: boolean value (true if either player wins or if there are no moves left, false otherwise)
     """
     return check_win(board, RED) or check_win(board, YELLOW) or FREE_CELLS == 0
-
-
-# count pieces for score:
-def count_pieces(my_board, player_colour: (int, int, int)) -> int:
-    val = 0
-    if player_colour == YELLOW:
-        val = 1
-    elif player_colour == RED:
-        val = 2
-    count = 0
-    for i in range(ROWS):
-        for j in range(COLS):
-            if my_board[i][j] == val:
-                count += 1
-    return count
 
 
 # printing board in terminal:
@@ -289,9 +257,6 @@ class GameBoard(object):
         self.cols = COLS
         self.board = np.zeros((ROWS, COLS))
         self.font = pygame.font.SysFont('Calibri', 32)
-        self.box1 = BoxMessage((W - W / 3) / 2, H / ROWS, W / 3 * COLS / 3, 32, 'Easy')
-        self.box2 = BoxMessage((W - W / 3) / 2, H / ROWS + 64, W / 3 * COLS / 3, 32, 'Medium')
-        self.box3 = BoxMessage((W - W / 3) / 2, H / ROWS + 128, W / 3 * COLS / 3, 32, 'Hard')
 
     # restart:
     def restart(self):
@@ -318,6 +283,7 @@ class GameBoard(object):
         pygame.display.update()
 
 
+# gameBoard object:
 game_board = GameBoard()
 game_board.draw_board()
 
@@ -342,9 +308,9 @@ class Player(object):
 
 
 # player 2 (either human or computer):
-computer = Player(RED, 0, 3)  # score = 0
+computer = Player(RED, 0, 3)  # colour = RED, score = 0
 # player 1 (always human):
-human = Player(YELLOW, 0, 3)  # score = 0
+human = Player(YELLOW, 0, 3)  # colour = YELLOW, score = 0
 
 # initializing first player:
 if FIRST_PLAYER == 'human':
@@ -382,6 +348,7 @@ class AI(object):
     - initialization
     - end of recursion (returns boolean)
     - player making move on virtual board
+    - determining best move
     - computing score for player (returns int)
     - final state (returns bool)
     - event handler for when it's human's turn
@@ -390,17 +357,14 @@ class AI(object):
     """
     global running, computer, human, turn, colour, FREE_CELLS
 
-    def __init__(self, strategy: str, ply: int, player: Player):
-        self.strategy = strategy
+    def __init__(self, ply: int, player: Player):
         self.ply = ply
         self.player = player  # corresponding to CPU (for score etc.)
         self.board = np.copy(game_board.board)
-        self.alpha = -1000000
-        self.beta = 1000000
 
     # check whether we hit end of recursion (ply is 0 or one/two players win):
     def end_of_recursion(self) -> bool:
-        return self.ply == 0 or is_game_over(self.board) is True
+        return self.ply == 0 or is_game_over(self.board) is True or not FREE_CELLS
 
     # make move (player of colour 'player' drops piece in column 'col'):
     @staticmethod
@@ -436,8 +400,7 @@ class AI(object):
                 total += 1000
             return total
 
-            # horizontally:
-
+        # horizontally:
         def horizontal_score() -> int:
             total = 0
             for row in range(ROWS):
@@ -564,48 +527,157 @@ class AI(object):
                 # update window:
                 pygame.display.update()
 
+    # pick optimal move for player of colour 'piece':
+    def best_move(self, board, available_moves: [], piece: int, best_score, max_player: int):
+        """
+        :param board: virtual board
+        :param available_moves: list of available columns for dropping piece
+        :param piece: value corresponding to player in virtual board (1 for human, 2 for CPU)
+        :param best_score: value determining the best column to drop piece out of all options
+        :param max_player: int value of either 1 or 2, corresponding to player
+        :return: optimal column and its score
+
+        """
+        # for better randomization:
+        random.shuffle(available_moves)
+        # by default, optimal column will be the first available one:
+        optimal_column = first_available_column(board)
+        # calculating score for every available column:
+        for col in available_moves:
+            row = next_free_row_on_col(board, col)
+            temp_board = board.copy()
+            piece_to_drop = Piece(piece, temp_board)
+            # drop piece of colour 'piece'
+            piece_to_drop.drop_piece(temp_board, piece, row, col)
+            self.make_move(temp_board, col, piece)
+            score = 0  # score(board, player)
+            # for maximizing player, score must be maximized:
+            if max_player == 2:
+                if score > best_score:
+                    best_score = score
+                    optimal_column = col
+            # for minimizing player, score must be minimized:
+            elif max_player == 1:
+                if score < best_score:
+                    best_score = score
+                    optimal_column = col
+        return optimal_column, best_score
+
     """ ___________________________ MINIMAX __________________________"""
 
-    def minimax(self, board, ply_level, col):
+    def minimax(self, board, ply_level, alpha, beta, max_player):
         """
         :param board: virtual board game
         :param ply_level: current ply level
-        :param col: the column on which the AI drops its piece when it's its turn
+        :param alpha:
+        :param beta:
+        :param max_player: maximizing player (1 for human, 2 for computer)
         :return: new game state
         """
+        # first, get available moves:
         available_columns = get_available_moves(game_board.board)
 
         # is end of recursion?
         if self.end_of_recursion() is True:
-            if ply_level == 0:
-                if winner == 1:      # human wins
-                    return 100000000000
-                elif winner == 2:    # computer wins
-                    return -100000000000
+            # if either player wins:
+            if is_game_over(board):
+                if check_win(board, YELLOW):     # player wins
+                    return 100000000000000, None
+                elif check_win(board, RED):      # computer wins
+                    return -100000000000000, None
                 else:
-                    return 0
+                    return 0, None  # tie
+            # else, if we reach ply level 0:
+            elif ply_level == 0:
+                return self.compute_score(2)     # return AI score
 
-        # if it's AI's turn:
-        # maximizing player
-        if turn == 2 and colour == RED:
-            val = -10000000000000000
-            # AI makes move to desired col:
-            copy_board = np.copy(board)
-            self.make_move(copy_board, col, turn)
-            # score = minimax(copy_board, ply_level - 1, self.alpha, self.beta)
+        # maximizing player's turn:
+        if turn == max_player:
+            val = -100000000000000
+            column, val = self.best_move(board, available_columns, max_player, val, max_player)
+            return column, val
 
-        # minimizing player
-        elif turn == 1 and colour == YELLOW:
-            pass
+        # minimizing player's turn:
+        else:
+            val = 100000000000000
+            column, val = self.best_move(board, available_columns, 3 - max_player, val, 3 - max_player)
+            return column, val
 
-        
+
 def single_player():
-    global turn, running, FIRST_PLAYER, colour
+    global turn, running, FIRST_PLAYER, colour, game_board, FREE_CELLS
 
     # difficulty: easy
     # strategy: random
     class Easy(AI):
-        pass
+        while running:
+            for event in pygame.event.get():  # the event loop
+
+                if event.type == pygame.QUIT:
+                    running = False
+                    exit()  # quit game
+
+                # if mouse click:
+                elif event.type == pygame.MOUSEBUTTONUP or event.type == pygame.MOUSEBUTTONDOWN and event.button == left:
+                    # piece is dropped; update board
+                    pos = pygame.mouse.get_pos()
+                    row = event.pos[0]
+                    col = int(np.math.floor(row / SQUARE_SIZE))
+                    # get #row where piece is dropped:
+                    drop_on_row = next_free_row_on_col(game_board.board, col)
+                    piece = Piece(colour, game_board.board)
+                    # update board:
+                    if drop_on_row != -1:  # if column is not empty and piece can be dropped:
+                        piece.drop_piece(game_board.board, colour, drop_on_row, col)  # drop piece
+                        FREE_CELLS = FREE_CELLS - 1
+                        game_board.draw_board()  # update GUI board
+                        print_board(game_board.board)  # print board
+                        colour, turn = switch_player(colour, turn)  # switch players
+                        # update score:
+                        if turn == 2:
+                            computer.inc_score()
+                        else:
+                            human.inc_score()
+
+                    pygame.display.update()
+
+                # if mouse is moving, make ball appear like it's in motion:
+                elif event.type == pygame.MOUSEMOTION:
+                    # position to drop piece:
+                    row = event.pos[0]
+                    # moving piece to drop:
+                    pygame.draw.rect(screen, WHITE, (0, 0, SQUARE_SIZE * COLS, SQUARE_SIZE))
+                    pygame.draw.circle(screen, colour, (row, SQUARE_SIZE // 2), RADIUS)
+                    pygame.display.update()
+
+                # stop condition:
+                if is_game_over(game_board.board):
+                    # check who won:
+                    if winner == 0:
+                        print('Tie!\nScore: ', human.score, '-', computer.score, 'Free cells: ', FREE_CELLS)
+                        color_fill = YELLOW
+                        text_box: str = "Player 1 wins! Congratulations!"
+                    elif winner == 1:
+                        print('You won!\nScore:', human.score, '-', computer.score, '\nFree cells: ', FREE_CELLS)
+                        color_fill = RED
+                        text_box: str = "Player 2 wins! Congratulations!"
+                    else:  # if winner == 3
+                        print('You lost!\nTotal score:', human.score, '-', computer.score, '\nFree cells: ', FREE_CELLS)
+                        color_fill = BLACK
+                        text_box: str = "That was a close one! Tie."
+                    # update GUI board:
+
+                    screen.fill(color_fill)  # set background colour to white
+                    pygame.display.set_caption(TITLE)  # set title of the window
+                    winner_box = BoxMessage(H // 3, W // 3, W / 2, 32, text_box)
+                    winner_box.draw()
+                    pygame.display.update()
+                    time.sleep(2)  # sleep for two seconds after showing winner
+                    # stop program from running:
+                    running = False
+
+                # update screen:
+                pygame.display.update()
 
     # difficulty: medium
     # strategy: random
@@ -695,7 +767,26 @@ def play_game():
     if OPPONENT == 'human':
         multiplayer()
     elif OPPONENT == 'computer':
+        # create difficulty level buttons:
+
+        level_box_easy = BoxMessage((W-W/3)/2, H/ROWS, W/3*COLS/3, 32, 'Easy')
+        level_box_medium = BoxMessage((W-W/3)/2, H/ROWS + 64, W/3*COLS/3, 32, 'MEDIUM')
+        level_box_hard = BoxMessage((W-W/3)/2, H/ROWS + 128, W/3*COLS/3, 32, 'HARD')
+
+        boxes = [level_box_easy, level_box_medium, level_box_hard]
+
+        # updating interface:
+        screen.fill(WHITE)
+        pygame.display.flip()
+        pygame.display.update()
+        # drawing boxes:
+        for box in boxes:
+            box.draw()
+        
         # choose difficulty level
+        for box in boxes:
+            # box.click_box(event)
+            pass
         # create correspondent AI object
         # play
         pass
