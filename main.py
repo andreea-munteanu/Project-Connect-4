@@ -12,6 +12,7 @@ with open('4inaROW.txt', 'r') as file:
     ROWS, COLS = int(ROWS), int(COLS)
     # print("OPPONENT =", OPPONENT, ', ROWS = ', ROWS, ', COLS = ', COLS, ', FIRST PLAYER = ', FIRST_PLAYER)
     assert 4 <= ROWS <= 10 and 4 <= COLS <= 10, 'Board must be at least 4x4 and at most 9x9.'
+
 file.close()
 print("FIRST_PLAYER ", FIRST_PLAYER)
 
@@ -57,7 +58,6 @@ class Piece(object):
     - initialization
     - GUI representation of piece
     - virtual board update after one of the two players drops piece
-
     """
 
     def __init__(self, my_colour, board):
@@ -82,6 +82,11 @@ class Piece(object):
 
 
 """_______________________ GENERAL USE FUNCTIONS __________________ """
+
+
+# function for random.shuffle()
+def randomize():
+    return 0.225
 
 
 # get next free row on column col
@@ -379,7 +384,6 @@ running = True
 class AI(object):
     """
     Class for AI implementation.
-
     Methods for:
     - initialization
     - end of recursion (returns boolean)
@@ -400,6 +404,7 @@ class AI(object):
 
     # check whether we hit end of recursion (ply is 0 or one/two players win):
     def end_of_recursion(self) -> bool:
+        print(self.ply, is_game_over(self.board), FREE_CELLS)
         return self.ply == 0 or is_game_over(self.board) is True or not FREE_CELLS
 
     # make move (player of colour 'player' drops piece in column 'col'):
@@ -540,42 +545,6 @@ class AI(object):
                 # update window:
                 pygame.display.update()
 
-    # pick optimal move for player of colour 'piece':
-    def best_move(self, board, available_moves: [], piece: int, best_score, max_player: int):
-        """
-        :param board: virtual board
-        :param available_moves: list of available columns for dropping piece
-        :param piece: value corresponding to player in virtual board (1 for human, 2 for CPU)
-        :param best_score: value determining the best column to drop piece out of all options
-        :param max_player: int value of either 1 or 2, corresponding to player
-        :return: optimal column and its score
-
-        """
-        # for better randomization:
-        random.shuffle(available_moves)
-        # by default, optimal column will be the first available one:
-        optimal_column = first_available_column(board)
-        # calculating score for every available column:
-        for col in available_moves:
-            row = next_free_row_on_col(board, col)
-            temp_board = board.copy()
-            piece_to_drop = Piece(piece, temp_board)
-            # drop piece of colour 'piece'
-            piece_to_drop.drop_piece(temp_board, piece, row, col)
-            self.make_move(temp_board, col, piece)
-            score = 0  # score(board, player)
-            # for maximizing player, score must be maximized:
-            if max_player == 2:
-                if score > best_score:
-                    best_score = score
-                    optimal_column = col
-            # for minimizing player, score must be minimized:
-            elif max_player == 1:
-                if score < best_score:
-                    best_score = score
-                    optimal_column = col
-        return optimal_column, best_score
-
     """ ___________________________ MINIMAX __________________________"""
 
     def minimax(self, board, ply_level, alpha, beta, max_player):
@@ -588,7 +557,10 @@ class AI(object):
         :return: new game state
         """
         # first, get available moves:
+        global FREE_CELLS
         available_columns = get_available_moves(game_board.board)
+        # for better randomization:
+        random.shuffle(available_columns, randomize)
 
         # is end of recursion?
         if self.end_of_recursion() is True:
@@ -602,22 +574,63 @@ class AI(object):
                     return 0, None  # tie
             # else, if we reach ply level 0:
             elif ply_level == 0:
-                return self.compute_score(2)  # return AI score
+                return self.compute_score(2), None  # return AI score
 
         # maximizing player's turn:
         if turn == max_player:
-            column, alpha = self.best_move(board, available_columns, max_player, alpha, max_player)
-            return column, alpha
+            # column, alpha = self.best_move(board, available_columns, max_player, alpha, max_player)
+            # return column, alpha
+
+            column, score = first_available_column(board), 100000000000000
+            random.shuffle(available_columns, randomize)
+            for col_ in available_columns:
+                row_ = next_free_row_on_col(board, col_)
+                copy_board = np.copy(board)
+                assert turn in [1, 2], "Error recognizing player turn."
+                my_colour = RED if turn == 2 else YELLOW
+                piece = Piece(my_colour, copy_board)
+                piece.drop_piece(copy_board, my_colour, row_, col_)
+                FREE_CELLS -= 1
+                new_score = self.minimax(copy_board, decrement(ply_level), alpha, beta, max_player)[0]
+                FREE_CELLS += 1
+                # maximizing alpha:
+                if new_score > score:
+                    score = new_score
+                    column = col_
+                alpha = max(alpha, score)
+                if alpha >= beta:
+                    break
+            return column, score
 
         # minimizing player's turn:
         else:
-            column, beta = self.best_move(board, available_columns, 3 - max_player, beta, 3 - max_player)
-            return column, beta
+            column, score = first_available_column(board), -100000000000000
+            for col_ in available_columns:
+                row_ = next_free_row_on_col(board, col_)
+                copy_board = np.copy(board)
+                assert turn in [1, 2], "Error recognizing player turn."
+                my_colour = RED if turn == 2 else YELLOW
+                piece = Piece(my_colour, copy_board)
+                piece.drop_piece(copy_board, my_colour, row_, col_)
+                FREE_CELLS -= 1
+                new_score = self.minimax(copy_board, decrement(ply_level), alpha, beta, 3 - max_player)[0]
+                FREE_CELLS += 1
+                # minimizing beta:
+                if new_score < score:
+                    score = new_score
+                    column = col_
+                beta = min(beta, score)
+                if alpha >= beta:
+                    break
+            return column, score
 
 
-AI_easy_player = AI(0, computer)    # 0 because we don't use minimax
+"""
+AI objects for each level of difficulty:
+"""
+AI_easy_player = AI(0, computer)  # 0 because we don't use minimax
 AI_medium_player = AI(3, computer)  # 3 for medium difficulty AI
-AI_hard_player = AI(5, computer)    # 5 plies for high difficulty AI
+AI_hard_player = AI(5, computer)  # 5 plies for high difficulty AI
 
 
 def AI_game_human_turn(difficulty_level: str):
@@ -627,7 +640,7 @@ def AI_game_human_turn(difficulty_level: str):
     :param difficulty_level: level of difficulty (type int)
     :return: -
     """
-    global running, turn, colour, game_board, FREE_CELLS, screen, number_of_moves, tried
+    global running, turn, colour, game_board, FREE_CELLS, screen, number_of_moves
     game_board.draw_board()
     if difficulty_level.lower() == 'easy':
         AI_easy_player.human_handle_events(game_board.board)
@@ -665,8 +678,6 @@ def AI_game_human_turn(difficulty_level: str):
     pygame.display.update()
 
 
-# difficulty: easy
-# strategy: random
 def play_easy_game():
     """
     Method for playing a Connect-Four game of human player vs. AI of difficulty = 'easy'
@@ -681,7 +692,7 @@ def play_easy_game():
         # else if it's AI's turn and game is not over:
         elif colour == RED and turn == 2 and running:
             available_moves = get_available_moves(game_board.board)
-            random.shuffle(available_moves)
+            random.shuffle(available_moves, randomize)
 
             col_ = random.choice(available_moves)
             row_ = next_free_row_on_col(game_board.board, col_)
@@ -709,7 +720,32 @@ def play_medium_game():
 
     Strategy: minimax with max_ply = 3.
     """
-    pass
+    global running, turn, colour, game_board, FREE_CELLS
+    while running and not is_game_over(game_board.board):
+        # if it's human player's turn:
+        if turn == 1 and colour == YELLOW and running:
+            AI_game_human_turn('medium')
+        # else if it's AI's turn and game is not over:
+        elif colour == RED and turn == 2 and running:
+            alpha = -100000000000000
+            beta = 100000000000000
+            col_, score = AI_medium_player.minimax(game_board.board, 3, alpha, beta, turn)
+            row_ = next_free_row_on_col(game_board.board, col_)
+            piece = Piece(RED, game_board.board)
+            piece.drop_piece(game_board.board, RED, row_, col_)
+            # updating free cells count:
+            FREE_CELLS = decrement(FREE_CELLS)
+            # updating score for AI:
+            computer.inc_score()
+            # updating GUI:
+            game_board.draw_board()  # update GUI board
+            print_board(game_board.board)  # print board
+            pygame.display.update()
+            if is_game_over(game_board.board):
+                print("You lose! AI wins!")
+                running = False
+            # switch players:
+            colour, turn = switch_player(colour, turn)
 
 
 def play_hard_game():
@@ -718,17 +754,33 @@ def play_hard_game():
 
     Strategy: minimax with max_ply = 5 and capacity to block winning moves.
     """
-    pass
-
-
-def single_player(difficulty_level):
-    global turn, running, FIRST_PLAYER, colour, game_board, FREE_CELLS
-    if difficulty_level == 'easy':
-        pass
-    elif difficulty_level == 'medium':
-        pass
-    elif difficulty_level == 'hard':
-        pass
+    global running, turn, colour, game_board, FREE_CELLS
+    while running and not is_game_over(game_board.board):
+        # if it's human player's turn:
+        if turn == 1 and colour == YELLOW and running:
+            AI_game_human_turn('hard')
+        # else if it's AI's turn and game is not over:
+        elif colour == RED and turn == 2 and running:
+            alpha = -100000000000000
+            beta = 100000000000000
+            col_, score = AI_medium_player.minimax(game_board.board, 7, alpha, beta, turn)
+            row_ = next_free_row_on_col(game_board.board, col_)
+            piece = Piece(RED, game_board.board)
+            piece.drop_piece(game_board.board, RED, row_, col_)
+            # updating free cells count:
+            FREE_CELLS = decrement(FREE_CELLS)
+            # updating score for AI:
+            computer.inc_score()
+            # updating GUI:
+            game_board.draw_board()  # update GUI board
+            print_board(game_board.board)  # print board
+            pygame.display.update()
+            # check if game is over:
+            if is_game_over(game_board.board):
+                print("You lose! AI wins!")
+                running = False
+            # switch players:
+            colour, turn = switch_player(colour, turn)
 
 
 # play Connect-4 with a different opponent:
@@ -793,6 +845,11 @@ def multiplayer():
 
 
 def play_game():
+    """
+    Method for playing connect-4 game either against human or against AI of desired difficulty.
+
+    :return: game of connect-4
+    """
     global running, screen, number_of_moves
     if OPPONENT == 'human':
         multiplayer()
@@ -807,10 +864,11 @@ def play_game():
             play_easy_game()
 
         def medium_button():
-            pass
+            play_medium_game()
             root.quit()
 
         def hard_button():
+            play_hard_game()
             root.quit()
 
         easy_level = Button(root, text="Easy", command=easy_button)
