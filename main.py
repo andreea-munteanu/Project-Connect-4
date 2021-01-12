@@ -489,7 +489,7 @@ class AI(object):
         for event in pygame.event.get():  # the event loop
             if event.type == pygame.QUIT:
                 running = False
-                exit()  # quit game
+                exit()
             # if it's player's turn:
             if turn == 1 and colour == YELLOW:
                 # if mouse click:
@@ -593,15 +593,18 @@ class AI(object):
 
         # maximizing player's turn:
         if turn == max_player:
-            val = -100000000000000
-            column, val = self.best_move(board, available_columns, max_player, val, max_player)
-            return column, val
+            column, alpha = self.best_move(board, available_columns, max_player, alpha, max_player)
+            return column, alpha
 
         # minimizing player's turn:
         else:
-            val = 100000000000000
-            column, val = self.best_move(board, available_columns, 3 - max_player, val, 3 - max_player)
-            return column, val
+            column, beta = self.best_move(board, available_columns, 3 - max_player, beta, 3 - max_player)
+            return column, beta
+
+
+AI_easy_player = AI(0, computer)
+AI_medium_player = AI(3, computer)
+AI_hard_player = AI(5, computer)
 
 
 def single_player():
@@ -610,74 +613,92 @@ def single_player():
     # difficulty: easy
     # strategy: random
     class Easy(AI):
-        while running:
-            for event in pygame.event.get():  # the event loop
-
-                if event.type == pygame.QUIT:
-                    running = False
-                    exit()  # quit game
-
-                # if mouse click:
-                elif event.type == pygame.MOUSEBUTTONUP or event.type == pygame.MOUSEBUTTONDOWN and event.button == left:
-                    # piece is dropped; update board
-                    pos = pygame.mouse.get_pos()
-                    row = event.pos[0]
-                    col = int(np.math.floor(row / SQUARE_SIZE))
-                    # get #row where piece is dropped:
-                    drop_on_row = next_free_row_on_col(game_board.board, col)
-                    piece = Piece(colour, game_board.board)
-                    # update board:
-                    if drop_on_row != -1:  # if column is not empty and piece can be dropped:
-                        piece.drop_piece(game_board.board, colour, drop_on_row, col)  # drop piece
-                        FREE_CELLS = FREE_CELLS - 1
-                        game_board.draw_board()  # update GUI board
-                        print_board(game_board.board)  # print board
-                        colour, turn = switch_player(colour, turn)  # switch players
-                        # update score:
-                        if turn == 2:
-                            computer.inc_score()
-                        else:
+        while running and not is_game_over(game_board.board):
+            # for human player:
+            if colour == YELLOW:
+                for event in pygame.event.get():  # the event loop
+                    # if quit:
+                    if event.type == pygame.QUIT:
+                        running = False
+                        exit()  # quit game
+                    # if mouse click:
+                    elif event.type == pygame.MOUSEBUTTONUP or event.type == pygame.MOUSEBUTTONDOWN and event.button == left:
+                        # piece is dropped; update board
+                        pos = pygame.mouse.get_pos()
+                        row = event.pos[0]
+                        col = int(np.math.floor(row / SQUARE_SIZE))
+                        # get #row where piece is dropped:
+                        drop_on_row = next_free_row_on_col(game_board.board, col)
+                        piece = Piece(colour, game_board.board)
+                        # update board:
+                        if drop_on_row != -1:  # if column is not empty and piece can be dropped:
+                            piece.drop_piece(game_board.board, colour, drop_on_row, col)  # drop piece
+                            FREE_CELLS = decrement(FREE_CELLS)
+                            game_board.draw_board()  # update GUI board
+                            print_board(game_board.board)  # print board
+                            colour, turn = switch_player(colour, turn)  # switch players
+                            # update score:
                             human.inc_score()
 
+                        pygame.display.update()
+
+                    # if mouse is moving, make ball appear like it's in motion:
+                    elif event.type == pygame.MOUSEMOTION:
+                        # position to drop piece:
+                        row = event.pos[0]
+                        # moving piece to drop:
+                        pygame.draw.rect(screen, WHITE, (0, 0, SQUARE_SIZE * COLS, SQUARE_SIZE))
+                        pygame.draw.circle(screen, colour, (row, SQUARE_SIZE // 2), RADIUS)
+                        pygame.display.update()
+
+                    # stop condition:
+                    if is_game_over(game_board.board):
+                        # check who won:
+                        if winner == 0:
+                            print('Tie!\nScore: ', human.score, '-', computer.score)
+                            color_fill = YELLOW
+                            text_box: str = "Player 1 wins! Congratulations!"
+                        elif winner == 1:
+                            print('You won!\nScore:', human.score, '-', computer.score)
+                            color_fill = RED
+                            text_box: str = "Player 2 wins! Congratulations!"
+                        else:  # if winner == 3
+                            print('You lost!\nTotal score:', human.score, '-', computer.score)
+                            color_fill = BLACK
+                            text_box: str = "That was a close one! Tie."
+                        # update GUI board:
+
+                        screen.fill(color_fill)  # set background colour to white
+                        pygame.display.set_caption(TITLE)  # set title of the window
+                        winner_box = BoxMessage(H // 3, W // 3, W / 2, 32, text_box)
+                        winner_box.draw()
+                        pygame.display.update()
+                        time.sleep(2)  # sleep for two seconds after showing winner
+                        # stop program from running:
+                        running = False
+                    # update screen:
                     pygame.display.update()
 
-                # if mouse is moving, make ball appear like it's in motion:
-                elif event.type == pygame.MOUSEMOTION:
-                    # position to drop piece:
-                    row = event.pos[0]
-                    # moving piece to drop:
-                    pygame.draw.rect(screen, WHITE, (0, 0, SQUARE_SIZE * COLS, SQUARE_SIZE))
-                    pygame.draw.circle(screen, colour, (row, SQUARE_SIZE // 2), RADIUS)
-                    pygame.display.update()
-
-                # stop condition:
+            # else if it's AI's turn and game is not over:
+            elif colour == RED and running:
+                available_moves = get_available_moves(game_board.board)
+                random.shuffle(available_moves)
+                col_ = random.choice(available_moves)
+                row_ = next_free_row_on_col(game_board.board, col_)
+                piece = Piece(RED, game_board.board)
+                piece.drop_piece(game_board.board, RED, row_, col_)
+                # updating free cells count:
+                FREE_CELLS = decrement(FREE_CELLS)
+                # updating score for AI:
+                computer.inc_score()
+                # updating GUI:
+                game_board.draw_board()  # update GUI board
+                print_board(game_board.board)  # print board
+                pygame.screen.update()
                 if is_game_over(game_board.board):
-                    # check who won:
-                    if winner == 0:
-                        print('Tie!\nScore: ', human.score, '-', computer.score, 'Free cells: ', FREE_CELLS)
-                        color_fill = YELLOW
-                        text_box: str = "Player 1 wins! Congratulations!"
-                    elif winner == 1:
-                        print('You won!\nScore:', human.score, '-', computer.score, '\nFree cells: ', FREE_CELLS)
-                        color_fill = RED
-                        text_box: str = "Player 2 wins! Congratulations!"
-                    else:  # if winner == 3
-                        print('You lost!\nTotal score:', human.score, '-', computer.score, '\nFree cells: ', FREE_CELLS)
-                        color_fill = BLACK
-                        text_box: str = "That was a close one! Tie."
-                    # update GUI board:
-
-                    screen.fill(color_fill)  # set background colour to white
-                    pygame.display.set_caption(TITLE)  # set title of the window
-                    winner_box = BoxMessage(H // 3, W // 3, W / 2, 32, text_box)
-                    winner_box.draw()
-                    pygame.display.update()
-                    time.sleep(2)  # sleep for two seconds after showing winner
-                    # stop program from running:
+                    print("game over, loser")
                     running = False
-
-                # update screen:
-                pygame.display.update()
+                colour, turn = switch_player(colour, turn)
 
     # difficulty: medium
     # strategy: random
@@ -775,21 +796,21 @@ def play_game():
 
         boxes = [level_box_easy, level_box_medium, level_box_hard]
 
-        # updating interface:
-        screen.fill(WHITE)
-        pygame.display.flip()
-        pygame.display.update()
-        # drawing boxes:
-        for box in boxes:
-            box.draw()
-        
-        # choose difficulty level
-        for box in boxes:
-            # box.click_box(event)
-            pass
-        # create correspondent AI object
-        # play
-        pass
+        # # updating interface:
+        # screen.fill(WHITE)
+        # pygame.display.flip()
+        # pygame.display.update()
+        # # drawing boxes:
+        # for box in boxes:
+        #     box.draw()
+        #
+        # # choose difficulty level
+        # for box in boxes:
+        #     # box.click_box(event)
+        #     pass
+        # # create correspondent AI object
+        # # play
+        # pass
 
 
 if __name__ == "__main__":
