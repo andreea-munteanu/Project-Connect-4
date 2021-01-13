@@ -121,6 +121,11 @@ def decrement(value: int):
     return value - 1
 
 
+# increment value:
+def increment(value: int):
+    return value + 1
+
+
 # variable for determining who won the game:
 # 1 - human
 # 2 - computer/player2
@@ -143,7 +148,7 @@ def check_win(board, player_colour: (int, int, int)) -> bool:
         elif our_colour == YELLOW:
             return 1
         else:
-            return -1
+            raise TypeError("not a valid player")
 
     value = get_board_value(player_colour)
 
@@ -264,15 +269,6 @@ class BoxMessage(object):
         self.colour = WHITE
         self.text_box = FONT.render(text, True, BLUE)
         self.clicked = False
-
-    def click_box(self, event):
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            # if click within box --> change colour from WHITE to BLUE
-            if self.rect.collidepoint(event.pos):
-                self.clicked = 1 - self.clicked
-                self.colour = BLUE
-                self.text_box = FONT.render(self.text, True, BLUE)
-            self.colour = BLUE if self.clicked else WHITE
 
     def draw(self):
         screen.blit(self.text_box, (self.rect.x + 5, self.rect.y + 5))
@@ -404,7 +400,7 @@ class AI(object):
 
     # check whether we hit end of recursion (ply is 0 or one/two players win):
     def end_of_recursion(self) -> bool:
-        print(self.ply, is_game_over(self.board), FREE_CELLS)
+        # print(self.ply, is_game_over(self.board), FREE_CELLS)
         return self.ply == 0 or is_game_over(self.board) is True or not FREE_CELLS
 
     # make move (player of colour 'player' drops piece in column 'col'):
@@ -545,6 +541,14 @@ class AI(object):
                 # update window:
                 pygame.display.update()
 
+    """ ___________________ BLOCK OPPONENT WINNING MOVE ______________"""
+
+    def block_winning_move(self, board, opp_winning_col):
+        """
+        Method that helps AI determine the possible winning move of human player and blocks it.
+        """
+        pass
+
     """ ___________________________ MINIMAX __________________________"""
 
     def minimax(self, board, ply_level, alpha, beta, max_player):
@@ -557,31 +561,32 @@ class AI(object):
         :return: new game state
         """
         # first, get available moves:
-        global FREE_CELLS
-        available_columns = get_available_moves(game_board.board)
+        global FREE_CELLS, turn
+        available_columns = get_available_moves(board)
         # for better randomization:
         random.shuffle(available_columns, randomize)
 
         # is end of recursion?
-        if self.end_of_recursion() is True:
-            # if either player wins:
-            if is_game_over(board):
-                if check_win(board, YELLOW):  # player wins
-                    return 100000000000000, None
-                elif check_win(board, RED):  # computer wins
-                    return -100000000000000, None
-                else:
-                    return 0, None  # tie
-            # else, if we reach ply level 0:
-            elif ply_level == 0:
-                return self.compute_score(2), None  # return AI score
+        # if either player wins:
+        if is_game_over(board):
+            if check_win(board, YELLOW):  # player wins
+                print("yellow wins")
+                return 100000000000000, None
+            elif check_win(board, RED):  # computer wins
+                print("red wins")
+                return -100000000000000, None
+            else:
+                return 0, None
+        # else, if we reach ply level 0:
+        elif ply_level < 1:
+            return self.compute_score(2), None  # return AI score
 
         # maximizing player's turn:
         if turn == max_player:
             # column, alpha = self.best_move(board, available_columns, max_player, alpha, max_player)
             # return column, alpha
 
-            column, score = first_available_column(board), 100000000000000
+            column, score = first_available_column(board), -100000000000000
             random.shuffle(available_columns, randomize)
             for col_ in available_columns:
                 row_ = next_free_row_on_col(board, col_)
@@ -590,9 +595,10 @@ class AI(object):
                 my_colour = RED if turn == 2 else YELLOW
                 piece = Piece(my_colour, copy_board)
                 piece.drop_piece(copy_board, my_colour, row_, col_)
-                FREE_CELLS -= 1
-                new_score = self.minimax(copy_board, decrement(ply_level), alpha, beta, max_player)[0]
-                FREE_CELLS += 1
+                FREE_CELLS = decrement(FREE_CELLS)
+                new_score = self.minimax(copy_board, ply_level - 1, alpha, beta, max_player)[0]
+                print("ply = ", ply_level, "col = ", col_, "score = ", new_score)
+                FREE_CELLS = increment(FREE_CELLS)
                 # maximizing alpha:
                 if new_score > score:
                     score = new_score
@@ -604,7 +610,7 @@ class AI(object):
 
         # minimizing player's turn:
         else:
-            column, score = first_available_column(board), -100000000000000
+            column, score = first_available_column(board), 100000000000000
             for col_ in available_columns:
                 row_ = next_free_row_on_col(board, col_)
                 copy_board = np.copy(board)
@@ -612,9 +618,10 @@ class AI(object):
                 my_colour = RED if turn == 2 else YELLOW
                 piece = Piece(my_colour, copy_board)
                 piece.drop_piece(copy_board, my_colour, row_, col_)
-                FREE_CELLS -= 1
-                new_score = self.minimax(copy_board, decrement(ply_level), alpha, beta, 3 - max_player)[0]
-                FREE_CELLS += 1
+                FREE_CELLS = decrement(FREE_CELLS)
+                new_score, col = self.minimax(copy_board, decrement(ply_level), alpha, beta, 3 - max_player)[0]
+                # complementary operation (recursion):
+                FREE_CELLS = increment(FREE_CELLS)
                 # minimizing beta:
                 if new_score < score:
                     score = new_score
@@ -730,6 +737,7 @@ def play_medium_game():
             alpha = -100000000000000
             beta = 100000000000000
             col_, score = AI_medium_player.minimax(game_board.board, 3, alpha, beta, turn)
+
             row_ = next_free_row_on_col(game_board.board, col_)
             piece = Piece(RED, game_board.board)
             piece.drop_piece(game_board.board, RED, row_, col_)
@@ -758,12 +766,13 @@ def play_hard_game():
     while running and not is_game_over(game_board.board):
         # if it's human player's turn:
         if turn == 1 and colour == YELLOW and running:
-            AI_game_human_turn('hard')
+            AI_game_human_turn('medium')
         # else if it's AI's turn and game is not over:
         elif colour == RED and turn == 2 and running:
             alpha = -100000000000000
             beta = 100000000000000
-            col_, score = AI_medium_player.minimax(game_board.board, 7, alpha, beta, turn)
+            col_, score = AI_hard_player.minimax(game_board.board, 5, alpha, beta, turn)
+
             row_ = next_free_row_on_col(game_board.board, col_)
             piece = Piece(RED, game_board.board)
             piece.drop_piece(game_board.board, RED, row_, col_)
@@ -775,7 +784,6 @@ def play_hard_game():
             game_board.draw_board()  # update GUI board
             print_board(game_board.board)  # print board
             pygame.display.update()
-            # check if game is over:
             if is_game_over(game_board.board):
                 print("You lose! AI wins!")
                 running = False
