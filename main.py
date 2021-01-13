@@ -571,10 +571,10 @@ class AI(object):
         if is_game_over(board):
             if check_win(board, YELLOW):  # player wins
                 print("yellow wins")
-                return 100000000000000, None
+                return -100000000000000, None
             elif check_win(board, RED):  # computer wins
                 print("red wins")
-                return -100000000000000, None
+                return 100000000000000, None
             else:
                 return 0, None
         # else, if we reach ply level 0:
@@ -864,8 +864,10 @@ def play_game():
     elif OPPONENT == 'computer':
         # creating window with difficulty buttons:
         root = Tk()
+        label = Label(root, text="Choose AI difficulty: ")
+        label.pack()
         root.wm_title("Choose game difficulty")
-        root.geometry("500x200")
+        root.geometry("300x150")
 
         def easy_button():
             root.quit()
@@ -879,13 +881,12 @@ def play_game():
             play_hard_game()
             root.quit()
 
-        easy_level = Button(root, text="Easy", command=easy_button)
+        easy_level = Button(root, text="Easy", command=easy_button, activebackground='green', bd=5, justify=CENTER)
         easy_level.pack()
-        medium_level = Button(root, text="Medium", command=medium_button)
+        medium_level = Button(root, text="Medium", command=medium_button, activebackground='yellow', bd=5, justify=CENTER)
         medium_level.pack()
-        hard_level = Button(root, text="Hard", command=hard_button)
+        hard_level = Button(root, text="Hard", command=hard_button, activebackground='red', bd=5, justify=CENTER)
         hard_level.pack()
-
         root.mainloop()
 
 
