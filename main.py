@@ -5,6 +5,44 @@ import pygame
 import numpy as np
 from tkinter import *  # for buttons
 
+# OPPONENT = ''
+# ROWS, COLS = 4, 4
+# FIRST_PLAYER = ''
+#
+# root = Tk()
+# canvas = Canvas(root, width=400, height=300)
+# canvas.pack()
+# entry1, entry2 = Entry(root), Entry(root)
+# label1 = Label(root, text="Insert number of rows:")
+# label1.pack()
+# label2 = Label(root, text="Insert number of cols:")
+# label2.pack()
+# canvas.create_window(200, 140, window=entry1)
+# canvas.create_window(200, 140, window=entry2)
+# root.quit()
+#
+#
+# def game_against_AI():
+#     global OPPONENT
+#     OPPONENT = 'computer'
+#
+#
+# def game_against_player():
+#     global OPPONENT
+#     OPPONENT = 'human'
+#
+#
+# root1 = Tk()
+# label = Label(root1, text="Choose type of game: ")
+# label.pack()
+# root1.wm_title("Choose game difficulty")
+# root1.geometry("300x150")
+# AI = Button(root1, text='Play with computer', bd=5, justify=CENTER, command=game_against_AI)
+# AI.pack()
+# human_vs_human = Button(root1, text='Play with another player', bd=5, justify=CENTER, command=game_against_player)
+# human_vs_human.pack()
+# root1.mainloop()
+
 # reading input from input file:
 with open('4inaROW.txt', 'r') as file:
     content = file.read()
@@ -14,7 +52,7 @@ with open('4inaROW.txt', 'r') as file:
     assert 4 <= ROWS <= 10 and 4 <= COLS <= 10, 'Board must be at least 4x4 and at most 9x9.'
 
 file.close()
-print("FIRST_PLAYER ", FIRST_PLAYER)
+# print("FIRST_PLAYER ", FIRST_PLAYER)
 
 # available free cells:
 FREE_CELLS = ROWS * COLS
@@ -41,10 +79,10 @@ screen = pygame.display.set_mode(WINDOW_SIZE)  # set window size
 screen.fill(WHITE)  # set background colour to white
 pygame.display.set_caption(TITLE)  # set title of the window
 clock = pygame.time.Clock()  # create clock so that game doesn't refresh that often
-music_file = 'Su Turno.ogg'
-pygame.mixer.init()
-pygame.mixer.music.load(music_file)
-pygame.mixer.music.play(-1)  # If the loops is -1 then the music will repeat indefinitely.
+# music_file = 'Su Turno.ogg'
+# pygame.mixer.init()
+# pygame.mixer.music.load(music_file)
+# pygame.mixer.music.play(-1)  # If the loops is -1 then the music will repeat indefinitely.
 FONT = pygame.font.Font(None, 32)
 
 number_of_moves = 0
@@ -107,15 +145,6 @@ def get_available_moves(board):
     return available_cols
 
 
-# first available column:
-def first_available_column(board):
-    global COLS
-    for col_count in range(0, COLS):
-        if board[0][col_count] == 0:
-            return col_count
-    return -1
-
-
 # decrement value:
 def decrement(value: int):
     return value - 1
@@ -136,6 +165,8 @@ winner = 0
 # checks whether current state is final state:
 def check_win(board, player_colour: (int, int, int)) -> bool:
     """
+    Method that checks whether the player with colour 'player_colour' has made a winning move.
+
     :param board: virtual board
     :param player_colour: colour for player (YELLOW for player1, RED for player2/computer)
     :return: boolean value (true if player_colour wins, false otherwise)
@@ -143,6 +174,12 @@ def check_win(board, player_colour: (int, int, int)) -> bool:
     global winner
 
     def get_board_value(our_colour: (int, int, int)):
+        """
+        Method getting the board value of the player depending on their discs' colour.
+
+        :param our_colour: colour
+        :return: board value
+        """
         if our_colour == RED:
             return 2
         elif our_colour == YELLOW:
@@ -150,11 +187,15 @@ def check_win(board, player_colour: (int, int, int)) -> bool:
         else:
             raise TypeError("not a valid player")
 
+    # get board value for next 3 function calls:
     value = get_board_value(player_colour)
 
     # horizontally:
     def horizontal_win() -> bool:
-        # for each row, check whether there are 4 consecutive pieces of the same colour:
+        """
+        for each row, check whether there are 4 consecutive pieces of the same colour:
+        :return: bool
+        """
         for col in range(COLS - 3):
             for row in range(ROWS):
                 if board[row][col] == board[row][col + 1] == board[row][col + 2] == board[row][col + 3] == value:
@@ -164,7 +205,10 @@ def check_win(board, player_colour: (int, int, int)) -> bool:
 
     # vertically:
     def vertical_win() -> bool:
-        # check whether there are 4 identical pieces on a column:
+        """
+        check whether there are 4 identical pieces on a column:
+        :return: bool
+        """
         for row in range(ROWS - 3):
             for col in range(COLS):
                 if board[row][col] == board[row + 1][col] == board[row + 2][col] == board[row + 3][col] == value:
@@ -173,15 +217,20 @@ def check_win(board, player_colour: (int, int, int)) -> bool:
 
     # diagonally:
     def diagonal_win() -> bool:
-        def get_all_diagonals():  # checked; works
-            # main diagonals:
+        """
+        check whether there are 4 identical pieces on diagonals
+        :return: bool
+        """
+        def get_all_diagonals():
+            # get main diagonals:
             diags = [board[::-1, :].diagonal(i) for i in range(-board.shape[0] + 1, board.shape[1])]
-            # secondary diagonals:
+            # get secondary diagonals:
             diags.extend(board.diagonal(i) for i in range(board.shape[1] - 1, -board.shape[0], -1))
+            # make list:
             diags_list = []
             for i in diags:
                 diags_list.append(list(i))
-            return diags_list  # as list
+            return diags_list
 
         # all board diagonals:
         diagonals = get_all_diagonals()
@@ -398,11 +447,6 @@ class AI(object):
         self.player = player  # corresponding to CPU (for score etc.)
         self.board = np.copy(game_board.board)
 
-    # check whether we hit end of recursion (ply is 0 or one/two players win):
-    def end_of_recursion(self) -> bool:
-        # print(self.ply, is_game_over(self.board), FREE_CELLS)
-        return self.ply == 0 or is_game_over(self.board) is True or not FREE_CELLS
-
     # make move (player of colour 'player' drops piece in column 'col'):
     @staticmethod
     def make_move(board, col, player):
@@ -410,27 +454,36 @@ class AI(object):
         board[row][col] = player  # 1 for human, 2 for CPU
 
     # compute score for player at a given time:
-    def compute_score(self, piece: int) -> int:
+    def compute_score(self, board, piece: int) -> int:
         """
+        Function computing the board score for player 'piece' as follows:
+
         ________________ RULES__________________
         player:
 
         4-piece sequence --> player_score += 1000
         3-piece sequence --> player_score += 500
-        2-piece sequence --> player_score += 250
-        1-piece sequence --> player_score += 50
+        2-piece sequence --> player_score += 200
+
+        player_score += 10 for each piece in the center
 
         opponent:
-        3-piece sequence --> player_score -= 200
+        3-piece sequence --> player_score -= 400
         __________________________
+
+        :param piece: board value for player
         """
 
-        def compute_score(seq_length: int):
-            total = 0
-            if seq_length == 1:
-                total += 50
-            elif seq_length == 2:
-                total += 250
+        def compute_score_for_length(seq_length: int):
+            """
+            Implementing the rules above.
+
+            :param seq_length: length of sequence
+            :return: score as integer
+            """
+            total = 0  # score
+            if seq_length == 2:
+                total += 200
             elif seq_length == 3:
                 total += 500
             elif seq_length == 4:
@@ -438,34 +491,53 @@ class AI(object):
             return total
 
         # horizontally:
-        def horizontal_score() -> int:
+        def horizontal_score(val: int):
+            opp_max_horizontal = 1
             total = 0
             for row in range(ROWS):
+                opp_length = 1
                 seq_length = 1
                 for col in range(COLS - 1):
-                    if self.board[row][col] == self.board[row][col + 1] == piece:
+                    if board[row][col] == board[row][col + 1] == val:
                         seq_length += 1
                     else:
-                        total += compute_score(seq_length)
+                        total += compute_score_for_length(seq_length)
                         seq_length = 1
-            return total
+                    # for opponent:
+                    if board[row][col] == board[row][col + 1] == 3 - val:
+                        opp_length += 1
+                    else:
+                        if opp_length > opp_max_horizontal:
+                            opp_max_horizontal = opp_length
+                            opp_length = 1
+            return total, opp_max_horizontal
 
         # vertically:
-        def vertical_score() -> int:
+        def vertical_score(val: int):
+            opp_max_vertical = 1
             total = 0
             for col in range(COLS):
-                seq_length = 1
+                opp_length = 1  # length for opponent sequence
+                seq_length = 1  # length for player sequence
                 for row in range(ROWS - 1):
-                    if self.board[row][col] == self.board[row + 1][col] == piece:
+                    if board[row][col] == board[row + 1][col] == val:
                         seq_length += 1
                     else:
-                        total += compute_score(seq_length)
+                        total += compute_score_for_length(seq_length)
                         seq_length = 1
-            return total
+                    # for opponent:
+                    if board[row][col] == board[row + 1][col] == 3 - val:
+                        opp_length += 1
+                    else:
+                        if opp_length > opp_max_vertical:
+                            opp_max_vertical = opp_length
+                            opp_length = 1
+            return total, opp_max_vertical
 
         # diagonally:
-        def diagonal_score():
+        def diagonal_score(val):
             total = 0
+            opp_max_diag = 1
 
             def get_all_diagonals():
                 # main diagonals:
@@ -484,15 +556,30 @@ class AI(object):
             # parse all diagonals to check for 4 identical pieces:
             for diag_i in diagonals:
                 seq_length = 1
+                opp_diag = 1
                 for elem in range(len(diag_i) - 1):
-                    if diag_i[elem] == diag_i[elem + 1] == piece:
+                    if diag_i[elem] == diag_i[elem + 1] == val:
                         seq_length += 1
                     else:
-                        total += compute_score(seq_length)
+                        total += compute_score_for_length(seq_length)
                         seq_length = 1
-            return total
+                    # for opponent:
+                    if diag_i[elem] == diag_i[elem + 1] == 3 - val:
+                        opp_diag += 1
+                    else:
+                        if opp_diag > opp_max_diag:
+                            opp_max_diag = opp_diag
+                            opp_diag = 1
+            return total, opp_max_diag
 
-        return horizontal_score() + vertical_score() + diagonal_score()
+        # individual scores for vertical, horizontal and diagonal approaches:
+        horizontal, opp_max_hor = horizontal_score(piece)
+        vertical, opp_max_vert = vertical_score(piece)
+        diagonal, opp_max_diagonal = diagonal_score(piece)
+        # sequence of maximum length made by opponent:
+        max_opponent_sequence = max(opp_max_hor, opp_max_vert, opp_max_diagonal)
+        return horizontal + vertical + diagonal if max_opponent_sequence < 3 \
+            else horizontal + vertical + diagonal - 400
 
     """ ________________________ HANDLE EVENTS _______________________"""
 
@@ -512,7 +599,7 @@ class AI(object):
                     # piece is dropped; update board
                     row = event.pos[0]
                     # get virtual board column of dropped piece:
-                    col = int(np.math.floor(row / SQUARE_SIZE))
+                    col = row // SQUARE_SIZE
                     # get #row where piece is dropped:
                     drop_on_row = next_free_row_on_col(board, col)
                     piece = Piece(colour, board)
@@ -570,23 +657,21 @@ class AI(object):
         # if either player wins:
         if is_game_over(board):
             if check_win(board, YELLOW):  # player wins
-                print("yellow wins")
+                # print("yellow wins")
                 return -100000000000000, None
             elif check_win(board, RED):  # computer wins
-                print("red wins")
+                # print("red wins")
                 return 100000000000000, None
-            else:
+            elif not FREE_CELLS:
+                # tie
                 return 0, None
         # else, if we reach ply level 0:
         elif ply_level < 1:
-            return self.compute_score(2), None  # return AI score
+            return self.compute_score(board, 2), None  # return AI score
 
         # maximizing player's turn:
         if turn == max_player:
-            # column, alpha = self.best_move(board, available_columns, max_player, alpha, max_player)
-            # return column, alpha
-
-            column, score = first_available_column(board), -100000000000000
+            column, score = random.choice(board), -100000000000000
             random.shuffle(available_columns, randomize)
             for col_ in available_columns:
                 row_ = next_free_row_on_col(board, col_)
@@ -596,8 +681,7 @@ class AI(object):
                 piece = Piece(my_colour, copy_board)
                 piece.drop_piece(copy_board, my_colour, row_, col_)
                 FREE_CELLS = decrement(FREE_CELLS)
-                new_score = self.minimax(copy_board, ply_level - 1, alpha, beta, max_player)[0]
-                print("ply = ", ply_level, "col = ", col_, "score = ", new_score)
+                new_score = self.minimax(copy_board, ply_level - 1, alpha, beta, 3 - max_player)[0]
                 FREE_CELLS = increment(FREE_CELLS)
                 # maximizing alpha:
                 if new_score > score:
@@ -610,7 +694,7 @@ class AI(object):
 
         # minimizing player's turn:
         else:
-            column, score = first_available_column(board), 100000000000000
+            column, score = random.choice(board), 100000000000000
             for col_ in available_columns:
                 row_ = next_free_row_on_col(board, col_)
                 copy_board = np.copy(board)
@@ -619,7 +703,9 @@ class AI(object):
                 piece = Piece(my_colour, copy_board)
                 piece.drop_piece(copy_board, my_colour, row_, col_)
                 FREE_CELLS = decrement(FREE_CELLS)
-                new_score, col = self.minimax(copy_board, decrement(ply_level), alpha, beta, 3 - max_player)[0]
+                if check_win(copy_board, my_colour):
+                    print("win at col ", col_)
+                new_score = self.minimax(copy_board, decrement(ply_level), alpha, beta, 3 - max_player)[0]
                 # complementary operation (recursion):
                 FREE_CELLS = increment(FREE_CELLS)
                 # minimizing beta:
@@ -736,7 +822,7 @@ def play_medium_game():
         elif colour == RED and turn == 2 and running:
             alpha = -100000000000000
             beta = 100000000000000
-            col_, score = AI_medium_player.minimax(game_board.board, 3, alpha, beta, turn)
+            col_, score = AI_medium_player.minimax(game_board.board, COLS//2, alpha, beta, turn)
 
             row_ = next_free_row_on_col(game_board.board, col_)
             piece = Piece(RED, game_board.board)
@@ -750,7 +836,7 @@ def play_medium_game():
             print_board(game_board.board)  # print board
             pygame.display.update()
             if is_game_over(game_board.board):
-                print("You lose! AI wins!")
+                print_winner_terminal()
                 running = False
             # switch players:
             colour, turn = switch_player(colour, turn)
@@ -771,7 +857,7 @@ def play_hard_game():
         elif colour == RED and turn == 2 and running:
             alpha = -100000000000000
             beta = 100000000000000
-            col_, score = AI_hard_player.minimax(game_board.board, 5, alpha, beta, turn)
+            col_, score = AI_hard_player.minimax(game_board.board, 6, alpha, beta, turn)
 
             row_ = next_free_row_on_col(game_board.board, col_)
             piece = Piece(RED, game_board.board)
@@ -785,7 +871,7 @@ def play_hard_game():
             print_board(game_board.board)  # print board
             pygame.display.update()
             if is_game_over(game_board.board):
-                print("You lose! AI wins!")
+                print_winner_terminal()
                 running = False
             # switch players:
             colour, turn = switch_player(colour, turn)
@@ -859,35 +945,38 @@ def play_game():
     :return: game of connect-4
     """
     global running, screen, number_of_moves
+
     if OPPONENT == 'human':
         multiplayer()
     elif OPPONENT == 'computer':
         # creating window with difficulty buttons:
-        root = Tk()
-        label = Label(root, text="Choose AI difficulty: ")
+        root_ = Tk()
+        label = Label(root_, text="Choose AI difficulty: ")
         label.pack()
-        root.wm_title("Choose game difficulty")
-        root.geometry("300x150")
+        root_.wm_title("Choose game difficulty")
+        root_.geometry("300x150")
 
         def easy_button():
-            root.quit()
+            root_.quit()
             play_easy_game()
 
         def medium_button():
             play_medium_game()
-            root.quit()
+            root_.quit()
 
         def hard_button():
             play_hard_game()
-            root.quit()
+            root_.quit()
 
-        easy_level = Button(root, text="Easy", command=easy_button, activebackground='green', bd=5, justify=CENTER)
+        easy_level = Button(root_, text="Easy", command=easy_button, activebackground='green', bd=5, justify=CENTER)
         easy_level.pack()
-        medium_level = Button(root, text="Medium", command=medium_button, activebackground='yellow', bd=5, justify=CENTER)
+        medium_level = Button(root_, text="Medium", command=medium_button, activebackground='yellow', bd=5,
+                              justify=CENTER)
         medium_level.pack()
-        hard_level = Button(root, text="Hard", command=hard_button, activebackground='red', bd=5, justify=CENTER)
+        hard_level = Button(root_, text="Hard", command=hard_button, activebackground='red', bd=5, justify=CENTER)
         hard_level.pack()
-        root.mainloop()
+        root_.mainloop()
+        root_.quit()
 
 
 if __name__ == "__main__":
