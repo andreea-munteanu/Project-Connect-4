@@ -40,11 +40,11 @@ pygame.display.set_icon(icon)
 screen = pygame.display.set_mode(WINDOW_SIZE)  # set window size
 screen.fill(WHITE)  # set background colour to white
 pygame.display.set_caption(TITLE)  # set title of the window
-# clock = pygame.time.Clock()  # create clock so that game doesn't refresh that often
-music_file = 'Su Turno.ogg'
-pygame.mixer.init()
-pygame.mixer.music.load(music_file)
-pygame.mixer.music.play(-1)  # If the loops is -1 then the music will repeat indefinitely.
+# # clock = pygame.time.Clock()  # create clock so that game doesn't refresh that often
+# music_file = 'Su Turno.ogg'
+# pygame.mixer.init()
+# pygame.mixer.music.load(music_file)
+# pygame.mixer.music.play(-1)  # If the loops is -1 then the music will repeat indefinitely.
 FONT = pygame.font.Font(None, 32)
 
 number_of_moves = 0
@@ -457,17 +457,17 @@ class AI(object):
         def horizontal_score(val: int):
             opp_max_horizontal = 1
             total = 0
-            for row in range(ROWS):
+            for row_ in range(ROWS):
                 opp_length = 1
                 seq_length = 1
                 for col in range(COLS - 1):
-                    if board[row][col] == board[row][col + 1] == val:
+                    if board[row_][col] == board[row_][col + 1] == val:
                         seq_length += 1
                     else:
                         total += compute_score_for_length(seq_length)
                         seq_length = 1
                     # for opponent:
-                    if board[row][col] == board[row][col + 1] == 3 - val:
+                    if board[row_][col] == board[row_][col + 1] == 3 - val:
                         opp_length += 1
                     else:
                         if opp_length > opp_max_horizontal:
@@ -482,14 +482,14 @@ class AI(object):
             for col in range(COLS):
                 opp_length = 1  # length for opponent sequence
                 seq_length = 1  # length for player sequence
-                for row in range(ROWS - 1):
-                    if board[row][col] == board[row + 1][col] == val:
+                for row_ in range(ROWS - 1):
+                    if board[row_][col] == board[row_ + 1][col] == val:
                         seq_length += 1
                     else:
                         total += compute_score_for_length(seq_length)
                         seq_length = 1
                     # for opponent:
-                    if board[row][col] == board[row + 1][col] == 3 - val:
+                    if board[row_][col] == board[row_ + 1][col] == 3 - val:
                         opp_length += 1
                     else:
                         if opp_length > opp_max_vertical:
@@ -591,7 +591,8 @@ class AI(object):
                     row = event.pos[0]
                     # moving piece to drop:
                     pygame.draw.rect(screen, WHITE, (0, 0, SQUARE_SIZE * COLS, SQUARE_SIZE))
-                    pygame.draw.circle(screen, colour, (row, SQUARE_SIZE // 2), RADIUS)
+                    # modificarea cerută: cercul să fie albastru, cu dimensiunea redusă cu 20%
+                    pygame.draw.circle(screen, BLUE, (row, SQUARE_SIZE // 2), RADIUS - RADIUS*0.2)
 
                 # update window:
                 pygame.display.update()
