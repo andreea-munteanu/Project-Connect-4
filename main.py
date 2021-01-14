@@ -5,44 +5,6 @@ import pygame
 import numpy as np
 from tkinter import *  # for buttons
 
-# OPPONENT = ''
-# ROWS, COLS = 4, 4
-# FIRST_PLAYER = ''
-#
-# root = Tk()
-# canvas = Canvas(root, width=400, height=300)
-# canvas.pack()
-# entry1, entry2 = Entry(root), Entry(root)
-# label1 = Label(root, text="Insert number of rows:")
-# label1.pack()
-# label2 = Label(root, text="Insert number of cols:")
-# label2.pack()
-# canvas.create_window(200, 140, window=entry1)
-# canvas.create_window(200, 140, window=entry2)
-# root.quit()
-#
-#
-# def game_against_AI():
-#     global OPPONENT
-#     OPPONENT = 'computer'
-#
-#
-# def game_against_player():
-#     global OPPONENT
-#     OPPONENT = 'human'
-#
-#
-# root1 = Tk()
-# label = Label(root1, text="Choose type of game: ")
-# label.pack()
-# root1.wm_title("Choose game difficulty")
-# root1.geometry("300x150")
-# AI = Button(root1, text='Play with computer', bd=5, justify=CENTER, command=game_against_AI)
-# AI.pack()
-# human_vs_human = Button(root1, text='Play with another player', bd=5, justify=CENTER, command=game_against_player)
-# human_vs_human.pack()
-# root1.mainloop()
-
 # reading input from input file:
 with open('4inaROW.txt', 'r') as file:
     content = file.read()
@@ -78,11 +40,11 @@ pygame.display.set_icon(icon)
 screen = pygame.display.set_mode(WINDOW_SIZE)  # set window size
 screen.fill(WHITE)  # set background colour to white
 pygame.display.set_caption(TITLE)  # set title of the window
-clock = pygame.time.Clock()  # create clock so that game doesn't refresh that often
-# music_file = 'Su Turno.ogg'
-# pygame.mixer.init()
-# pygame.mixer.music.load(music_file)
-# pygame.mixer.music.play(-1)  # If the loops is -1 then the music will repeat indefinitely.
+# clock = pygame.time.Clock()  # create clock so that game doesn't refresh that often
+music_file = 'Su Turno.ogg'
+pygame.mixer.init()
+pygame.mixer.music.load(music_file)
+pygame.mixer.music.play(-1)  # If the loops is -1 then the music will repeat indefinitely.
 FONT = pygame.font.Font(None, 32)
 
 number_of_moves = 0
@@ -295,7 +257,7 @@ def print_winner_terminal():
             color_fill = RED
             text_box: str = "You won! Congratulations!"
         else:  # if winner == 2
-            print('AI won! !\nTotal score:', human.score, '-', computer.score, '\nFree cells: ', FREE_CELLS)
+            print('AI won! \nTotal score:', human.score, '-', computer.score, '\nFree cells: ', FREE_CELLS)
             color_fill = BLACK
             text_box: str = "AI won! Better luck next time."
     return color_fill, text_box
@@ -471,6 +433,7 @@ class AI(object):
         3-piece sequence --> player_score -= 400
         __________________________
 
+        :param board: virtual board
         :param piece: board value for player
         """
 
@@ -576,9 +539,14 @@ class AI(object):
         horizontal, opp_max_hor = horizontal_score(piece)
         vertical, opp_max_vert = vertical_score(piece)
         diagonal, opp_max_diagonal = diagonal_score(piece)
+
+        middle_count = 0
+        for row in range(ROWS):
+            if board[row][(COLS-1)//2] == 3 - piece:
+                middle_count += 1
         # sequence of maximum length made by opponent:
         max_opponent_sequence = max(opp_max_hor, opp_max_vert, opp_max_diagonal)
-        return horizontal + vertical + diagonal if max_opponent_sequence < 3 \
+        return horizontal + vertical + diagonal + middle_count * 100 if max_opponent_sequence < 3 \
             else horizontal + vertical + diagonal - 400
 
     """ ________________________ HANDLE EVENTS _______________________"""
@@ -703,8 +671,6 @@ class AI(object):
                 piece = Piece(my_colour, copy_board)
                 piece.drop_piece(copy_board, my_colour, row_, col_)
                 FREE_CELLS = decrement(FREE_CELLS)
-                if check_win(copy_board, my_colour):
-                    print("win at col ", col_)
                 new_score = self.minimax(copy_board, decrement(ply_level), alpha, beta, 3 - max_player)[0]
                 # complementary operation (recursion):
                 FREE_CELLS = increment(FREE_CELLS)
@@ -751,7 +717,7 @@ def AI_game_human_turn(difficulty_level: str):
         elif winner == 1:
             print('You won!\nScore:', human.score, '-', computer.score)
             text_box: str = "You won! Congratulations!"
-        else:  # if winner == 3
+        else:  # if winner == 2
             print('You lost!\nTotal score:', human.score, '-', computer.score)
             text_box: str = "You lost!"
         # update GUI board:
@@ -822,7 +788,7 @@ def play_medium_game():
         elif colour == RED and turn == 2 and running:
             alpha = -100000000000000
             beta = 100000000000000
-            col_, score = AI_medium_player.minimax(game_board.board, COLS//2, alpha, beta, turn)
+            col_, score = AI_medium_player.minimax(game_board.board, 3, alpha, beta, turn)
 
             row_ = next_free_row_on_col(game_board.board, col_)
             piece = Piece(RED, game_board.board)
@@ -836,7 +802,28 @@ def play_medium_game():
             print_board(game_board.board)  # print board
             pygame.display.update()
             if is_game_over(game_board.board):
-                print_winner_terminal()
+                # check who won:
+                color_fill = WHITE
+                if winner == 0:
+                    print('Tie!\nScore: ', human.score, '-', computer.score)
+                    text_box: str = "It's a tie!"
+                elif winner == 1:
+                    print('You won!\nScore:', human.score, '-', computer.score)
+                    text_box: str = "You won! Congratulations!"
+                else:  # if winner == 2
+                    print('You lost!\nTotal score:', human.score, '-', computer.score)
+                    text_box: str = "AI wins! You lost!"
+                # update GUI board:
+                screen.fill(color_fill)  # set background colour to white
+                pygame.display.set_caption(TITLE)  # set title of the window
+
+                # show winner in GUI:
+                winner_box = BoxMessage(H // 3, W // 3, W / 2, 32, text_box)
+                winner_box.draw()
+                pygame.display.update()
+                time.sleep(2)  # sleep for two seconds after showing winner
+
+                # stop program from running:
                 running = False
             # switch players:
             colour, turn = switch_player(colour, turn)
@@ -857,7 +844,7 @@ def play_hard_game():
         elif colour == RED and turn == 2 and running:
             alpha = -100000000000000
             beta = 100000000000000
-            col_, score = AI_hard_player.minimax(game_board.board, 6, alpha, beta, turn)
+            col_, score = AI_hard_player.minimax(game_board.board, 7, alpha, beta, turn)
 
             row_ = next_free_row_on_col(game_board.board, col_)
             piece = Piece(RED, game_board.board)
@@ -871,7 +858,28 @@ def play_hard_game():
             print_board(game_board.board)  # print board
             pygame.display.update()
             if is_game_over(game_board.board):
-                print_winner_terminal()
+                # check who won:
+                color_fill = WHITE
+                if winner == 0:
+                    print('Tie!\nScore: ', human.score, '-', computer.score)
+                    text_box: str = "It's a tie!"
+                elif winner == 1:
+                    print('You won!\nScore:', human.score, '-', computer.score)
+                    text_box: str = "You won! Congratulations!"
+                else:  # if winner == 2
+                    print('You lost!\nTotal score:', human.score, '-', computer.score)
+                    text_box: str = "AI wins! You lost!"
+                # update GUI board:
+                screen.fill(color_fill)  # set background colour to white
+                pygame.display.set_caption(TITLE)  # set title of the window
+
+                # show winner in GUI:
+                winner_box = BoxMessage(H // 3, W // 3, W / 2, 32, text_box)
+                winner_box.draw()
+                pygame.display.update()
+                time.sleep(2)  # sleep for two seconds after showing winner
+
+                # stop program from running:
                 running = False
             # switch players:
             colour, turn = switch_player(colour, turn)
@@ -880,6 +888,7 @@ def play_hard_game():
 # play Connect-4 with a different opponent:
 def multiplayer():
     global game_board, running, FREE_CELLS, turn, colour
+    game_board.draw_board()
     while running:
         for event in pygame.event.get():  # the event loop
 
@@ -922,15 +931,27 @@ def multiplayer():
 
             # stop condition:
             if is_game_over(game_board.board):
-                color_fill, text_box = print_winner_terminal()
+                # check who won:
+                color_fill = WHITE
+                if winner == 0:
+                    print('Tie!\nScore: ', human.score, '-', computer.score)
+                    text_box: str = "It's a tie!"
+                elif winner == 1:
+                    print('Player 1 wins!\nScore:', human.score, '-', computer.score)
+                    text_box: str = "Player 1 wins! Congratulations!"
+                else:  # if winner == 2
+                    print('Player 2 wins!\nTotal score:', human.score, '-', computer.score)
+                    text_box: str = "Player 2 wins! Congratulations!"
                 # update GUI board:
-
                 screen.fill(color_fill)  # set background colour to white
                 pygame.display.set_caption(TITLE)  # set title of the window
+
+                # show winner in GUI:
                 winner_box = BoxMessage(H // 3, W // 3, W / 2, 32, text_box)
                 winner_box.draw()
                 pygame.display.update()
                 time.sleep(2)  # sleep for two seconds after showing winner
+
                 # stop program from running:
                 running = False
 
